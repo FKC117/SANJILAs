@@ -1,0 +1,41 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block content %}
+    <h1>Supplied Products Details</h1>
+    {% for item in supplier_product_data %}
+        <h2>{{ item.supplier.name }}</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Image</th>
+                    <th>Buying Price</th>
+                    <th>Total Received Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product_info in item.products %}
+                    <tr>
+                        <td>{{ product_info.product.name }}</td>
+                        <td>
+                            {% if product_info.first_image_url %}
+                                <img src="{{ product_info.first_image_url }}" alt="{{ product_info.product.name }}" style="max-height: 50px; max-width: 50px;">
+                            {% else %}
+                                (No Image)
+                            {% endif %}
+                        </td>
+                        <td>{{ product_info.buying_price }}</td>
+                        <td>{{ product_info.total_received }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">No products supplied by this supplier.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <br>
+    {% empty %}
+        <p>No suppliers selected.</p>
+    {% endfor %}
+    <a href="{% url 'admin:shop_supplier_changelist' %}">Back to Supplier List</a>
+{% endblock %}

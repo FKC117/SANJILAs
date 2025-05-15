@@ -1,0 +1,93 @@
+{% extends 'admin/base_site.html' %}
+{% block title %}{{ title }} | {{ site_header|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name" style="font-family: 'Playfair Display', serif; border-bottom: 2px solid #d4af37;">
+    <a href="{% url 'admin:index' %}" style="color: #d4af37; text-decoration: none;">{{ site_header|default:_('Django administration') }}</a>
+</h1>
+{% endblock %}
+
+{% block content %}
+<div class="module" style="max-width: 800px; margin: 2rem auto; padding: 2rem; background: #f8f9fa; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+    <h1 style="color: #2c2c2c; font-family: 'Playfair Display', serif; border-bottom: 2px solid #d4af37; padding-bottom: 0.5rem; margin-bottom: 2rem;">
+        {{ title }}
+    </h1>
+    
+    <form method="post" enctype="multipart/form-data" style="font-family: 'Open Sans', sans-serif;">
+        {% csrf_token %}
+        
+        <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+            {% for field in product_form %}
+                <div class="form-field {% if field.name in 'price,stock' %}grid-col-span-1{% endif %}">
+                    <label style="display: block; margin-bottom: 0.5rem; color: #4a4a4a; font-weight: 600;">
+                        {{ field.label }}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}
+                    <p class="helptext" style="margin: 0.25rem 0 0; color: #6c757d; font-size: 0.9em;">
+                        {{ field.help_text }}
+                    </p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="image-upload-section" style="margin: 2rem 0; padding: 1.5rem; background: white; border: 2px dashed #d4af37; border-radius: 8px;">
+            <h3 style="margin-top: 0; color: #2c2c2c; font-family: 'Playfair Display', serif;">
+                Product Images
+            </h3>
+            <label class="custom-file-upload" style="display: inline-block; padding: 0.75rem 1.5rem; background: #f8f9fa; color: #d4af37; border: 2px solid #d4af37; border-radius: 4px; cursor: pointer; transition: all 0.3s ease;">
+                <input type="file" name="images" multiple style="display: none;">
+                Choose Files
+            </label>
+            <span style="margin-left: 1rem; color: #6c757d;">(Multiple selection allowed)</span>
+        </div>
+
+        <div class="submit-row" style="text-align: right; margin-top: 2rem;">
+            <button type="submit" style="background: #d4af37; color: white; padding: 0.75rem 2rem; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; transition: background 0.3s ease;">
+                Add Product <i class="fas fa-plus-circle" style="margin-left: 0.5rem;"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    input, select, textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+    }
+
+    input:focus, select:focus, textarea:focus {
+        outline: none;
+        border-color: #d4af37;
+        box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.25);
+    }
+
+    .custom-file-upload:hover {
+        background: #d4af37;
+        color: white;
+    }
+
+    .helptext {
+        font-size: 0.9em;
+        color: #6c757d;
+    }
+
+    .errorlist {
+        color: #dc3545;
+        list-style: none;
+        padding: 0;
+        margin: 0.25rem 0 0;
+    }
+</style>
+
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+<!-- Include Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+{% endblock %}

@@ -1,0 +1,199 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}" style="color: #23282d; text-decoration: none; font-weight: 600; font-size: 1.5em;">
+        <img src="{% static 'admin/img/logo.png' %}" alt="{{ site_header }}" style="height: 30px; vertical-align: middle; margin-right: 10px;">
+        {{ site_header }}
+    </a>
+</h1>
+{% endblock %}
+
+{% block content %}
+<div class="wp-style-wrapper" style="padding: 20px; background: #f1f1f1; min-height: calc(100vh - 160px);">
+    <div class="wrap">
+        <h1 class="wp-heading-inline" style="font-size: 23px; font-weight: 400; margin: 0 0 20px; color: #23282d;">
+            {{ title }}
+        </h1>
+
+        <form method="post" enctype="multipart/form-data" class="wp-form">
+            {% csrf_token %}
+            
+            <!-- Main Content Column -->
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 2;">
+                    <!-- Product Details Metabox -->
+                    <div class="metabox-holder" style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px;">
+                        <div class="postbox-header" style="border-bottom: 1px solid #ccd0d4; padding: 10px 12px;">
+                            <h2 style="font-size: 14px; margin: 0; color: #23282d;">Product Information</h2>
+                        </div>
+                        <div class="inside" style="padding: 12px;">
+                            <div class="form-fields">
+                                {% for field in product_form %}
+                                    <div class="form-field" style="margin-bottom: 15px;">
+                                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #23282d;">
+                                            {{ field.label }}
+                                        </label>
+                                        {{ field }}
+                                        {% if field.help_text %}
+                                        <p class="description" style="margin: 2px 0 0; color: #646970; font-size: 13px;">
+                                            {{ field.help_text }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Images Metabox -->
+                    <div class="metabox-holder" style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px;">
+                        <div class="postbox-header" style="border-bottom: 1px solid #ccd0d4; padding: 10px 12px;">
+                            <h2 style="font-size: 14px; margin: 0; color: #23282d;">Product Images</h2>
+                        </div>
+                        <div class="inside" style="padding: 12px;">
+                            {{ image_formset.management_form }}
+                            <div class="image-uploader" style="margin: 15px 0;">
+                                <div class="upload-wrapper" style="border: 2px dashed #ccd0d4; padding: 20px; text-align: center; margin-bottom: 15px;">
+                                    <p style="margin: 0 0 10px; color: #646970;">Drag images here or</p>
+                                    <label class="button" style="background: #2271b1; color: #fff; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
+                                        Select Files
+                                        <input type="file" name="images" multiple style="display: none;">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="image-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                                {% for image_form in image_formset %}
+                                    <div class="image-card" style="border: 1px solid #ccd0d4; padding: 10px; background: #fff;">
+                                        {% if image_form.instance.image %}
+                                            <img src="{{ image_form.instance.image.url }}" alt="{{ image_form.instance.alt_text }}" 
+                                                 style="max-width: 100%; height: 150px; object-fit: cover; margin-bottom: 10px;">
+                                        {% endif %}
+                                        <div class="image-form-fields">
+                                            {% for field in image_form.visible_fields %}
+                                                <div style="margin-bottom: 8px;">
+                                                    {{ field }}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                        <div class="image-actions" style="margin-top: 10px; display: flex; align-items: center; gap: 5px;">
+                                            {{ image_form.DELETE.label_tag }}
+                                            {{ image_form.DELETE }}
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar Column -->
+                <div style="flex: 1; max-width: 300px;">
+                    <!-- Publish Metabox -->
+                    <div class="metabox-holder" style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px;">
+                        <div class="postbox-header" style="border-bottom: 1px solid #ccd0d4; padding: 10px 12px;">
+                            <h2 style="font-size: 14px; margin: 0; color: #23282d;">Publish</h2>
+                        </div>
+                        <div class="inside" style="padding: 12px;">
+                            <div class="submit-row" style="display: flex; flex-direction: column; gap: 10px;">
+                                <button type="submit" class="button button-primary" style="background: #2271b1; color: #fff; border: none; padding: 8px 12px; border-radius: 3px; cursor: pointer; width: 100%;">
+                                    Save Product
+                                </button>
+                                <a href="#" class="button" style="background: #f0f0f1; color: #2271b1; border: none; padding: 8px 12px; border-radius: 3px; text-align: center; text-decoration: none;">
+                                    Preview
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Categories Metabox -->
+                    <div class="metabox-holder" style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px;">
+                        <div class="postbox-header" style="border-bottom: 1px solid #ccd0d4; padding: 10px 12px;">
+                            <h2 style="font-size: 14px; margin: 0; color: #23282d;">Product Categories</h2>
+                        </div>
+                        <div class="inside" style="padding: 12px;">
+                            <!-- Add category checkboxes/select here -->
+                            <div class="category-checklist" style="max-height: 200px; overflow-y: auto;">
+                                <!-- Example category items -->
+                                <label style="display: block; margin: 5px 0;">
+                                    <input type="checkbox"> Necklaces
+                                </label>
+                                <label style="display: block; margin: 5px 0;">
+                                    <input type="checkbox"> Rings
+                                </label>
+                                <label style="display: block; margin: 5px 0;">
+                                    <input type="checkbox"> Earrings
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* WordPress-like Base Styles */
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+        color: #23282d;
+    }
+
+    input, select, textarea {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #8c8f94;
+        border-radius: 3px;
+        font-size: 14px;
+        margin-top: 2px;
+    }
+
+    input:focus, select:focus, textarea:focus {
+        border-color: #2271b1;
+        box-shadow: 0 0 0 1px #2271b1;
+        outline: none;
+    }
+
+    .errorlist {
+        color: #d63638;
+        margin: 5px 0 0;
+        padding-left: 20px;
+        list-style: none;
+    }
+
+    .errorlist li:before {
+        content: "⚠";
+        margin-left: -20px;
+        margin-right: 5px;
+    }
+
+    .description {
+        font-size: 13px;
+        color: #646970;
+        margin-top: 4px;
+    }
+
+    .button {
+        transition: all 0.15s ease-in-out;
+    }
+
+    .button-primary:hover {
+        background: #135e96 !important;
+    }
+
+    .image-actions label {
+        font-size: 13px;
+        color: #646970;
+    }
+
+    .image-card input[type="checkbox"] {
+        width: auto;
+        margin: 0;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'admin/base_site.html' %}
+
+{% block content %}
+    <h1>Supplier Prices for Selected Products</h1>
+    {% for item in product_supplier_data %}
+        <h2>{{ item.product.name }}</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Supplier</th>
+                    <th>Buying Price</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for supplier_info in item.suppliers %}
+                    <tr>
+                        <td>{{ supplier_info.supplier.name }}</td>
+                        <td>{{ supplier_info.buying_price }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="2">No supplier prices found for this product.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <br>
+    {% empty %}
+        <p>No products selected.</p>
+    {% endfor %}
+    <a href="{% url 'admin:shop_product_changelist' %}">Back to Product List</a>
+{% endblock %}
