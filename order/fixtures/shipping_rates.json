@@ -1,0 +1,20 @@
+[
+    {
+        "model": "order.shippingrate",
+        "pk": 1,
+        "fields": {
+            "name": "Inside Dhaka",
+            "price": "75.00",
+            "is_default": true
+        }
+    },
+    {
+        "model": "order.shippingrate",
+        "pk": 2,
+        "fields": {
+            "name": "Outside Dhaka",
+            "price": "125.00",
+            "is_default": false
+        }
+    }
+] 

@@ -90,13 +90,42 @@ class Product(models.Model):
     video_url = models.URLField(max_length=500, blank=True, null=True, help_text="Optional Video link from youtube or facebook")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
     def first_image(self):
-        if self.images.first():
-            return self.images.first().image.url
-        return None
+        """Get the first image URL or None if no images are available."""
+        try:
+            images = self.images.all()
+            if not images.exists():
+                return None
+                
+            first_image = images.first()
+            if not first_image or not first_image.image:
+                return None
+                
+            # Return the URL
+            return first_image.image.url
+        except (AttributeError, ValueError) as e:
+            # Log error and return None if anything fails
+            print(f"Error getting image for product {self.id}: {e}")
+            return None
+    
+    def get_selling_price(self):
+        """Get the actual selling price (discount_price if available, otherwise selling_price)."""
+        try:
+            if self.discount_price is not None:
+                return self.discount_price
+            elif self.selling_price is not None:
+                return self.selling_price
+            else:
+                # Fallback to zero if no price is available
+                return 0
+        except Exception as e:
+            print(f"Error calculating selling price for product {self.id}: {e}")
+            return 0
 
     def admin_photo(self):
-        url = self.first_image()
+        url = self.first_image
         if url:
             return f'<img src="{url}" style="max-height: 50px; max-width: 50px;" />'
         return '(No Image)'

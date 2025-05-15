@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Order Placed Successfully | SANJILA'S{% endblock %}
+
+{% block content %}
+<div class="container pt-5 mt-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'cart_view' %}">Cart</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'checkout' %}">Checkout</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Order Success</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <div class="order-success-icon mb-4">
+                <i class="fas fa-check-circle fa-5x text-success"></i>
+            </div>
+            <h1 class="order-success-title mb-3">Thank You for Your Order!</h1>
+            <p class="text-muted mb-5">Your order has been placed successfully and is now being processed.</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">Order #{{ order.id }} Details</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Customer Information</h5>
+                            <p class="mb-1"><strong>Name:</strong> {{ order.customer_name }}</p>
+                            <p class="mb-1"><strong>Phone:</strong> {{ order.customer_phone }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="mb-3">Order Information</h5>
+                            <p class="mb-1"><strong>Order Date:</strong> {{ order.order_date|date:"F j, Y, g:i a" }}</p>
+                            <p class="mb-1"><strong>Status:</strong> <span class="badge bg-warning text-dark">{{ order.get_status_display }}</span></p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="mb-3">Delivery Address</h5>
+                            <p class="mb-1">{{ order.shipping_address }}</p>
+                            <p class="mb-1">{{ order.area }}, {{ order.zone }}, {{ order.city }}</p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h5 class="mb-3">Order Items</h5>
+                    <div class="table-responsive">
+                        <table class="table table-borderless align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Unit Price</th>
+                                    <th>Quantity</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in order_items %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="order-item-img me-3">
+                                                {% if item.product.first_image %}
+                                                <img src="{{ item.product.first_image.image.url }}" alt="{{ item.product.name }}" width="60">
+                                                {% else %}
+                                                <div class="order-img-placeholder d-flex align-items-center justify-content-center bg-light" style="width: 60px; height: 60px;">
+                                                    <i class="fas fa-image text-muted"></i>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0">{{ item.product.name }}</h6>
+                                                {% if item.is_preorder %}
+                                                <span class="badge bg-warning text-dark">Pre-order</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>৳{{ item.unit_price }}</td>
+                                    <td>{{ item.quantity }}</td>
+                                    <td class="text-end">৳{{ item.unit_price|floatformat:2|mul:item.quantity }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
+                                    <td class="text-end">৳{{ order.total_amount|floatformat:2|sub:100 }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Shipping:</strong></td>
+                                    <td class="text-end">৳100.00</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                                    <td class="text-end"><strong>৳{{ order.total_amount|floatformat:2 }}</strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="{% url 'index' %}" class="btn btn-gold">Continue Shopping</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .order-success-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1a1a1a;
+    }
+    
+    .order-success-icon {
+        color: #51cf66;
+    }
+    
+    .order-item-img img {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %} 

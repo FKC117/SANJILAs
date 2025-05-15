@@ -1,0 +1,536 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Checkout{% endblock %}
+
+{% block content %}
+<div class="container pt-5 mt-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="#">Cart</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Checkout</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-12">
+            <h1 class="checkout-title">Checkout</h1>
+        </div>
+    </div>
+
+    <form method="post" id="checkout-form">
+        {% csrf_token %}
+        <div class="row">
+            <!-- Customer Information -->
+            <div class="col-lg-7">
+                <div class="checkout-section mb-5">
+                    <h4 class="section-title">Billing Details</h4>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="customerName" class="form-label">Full Name *</label>
+                            <input type="text" class="form-control" id="customerName" name="customer_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="customerPhone" class="form-label">Phone Number *</label>
+                            <input type="tel" class="form-control" id="customerPhone" name="customer_phone" required>
+                        </div>
+                        <div class="col-12">
+                            <label for="customerEmail" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="customerEmail" name="customer_email">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="checkout-section mb-5">
+                    <h4 class="section-title">Shipping Address</h4>
+                    <div class="row g-3">
+                        <!-- Shipping Location -->
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Shipping Location *</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="shipping_location" id="inside_dhaka_checkout" value="inside_dhaka" {% if shipping_location == 'inside_dhaka' %}checked{% endif %} required>
+                                <label class="form-check-label d-flex justify-content-between w-100" for="inside_dhaka_checkout">
+                                    <span>Inside Dhaka</span>
+                                    <span>৳{{ shipping_rates.inside_dhaka }}</span>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="shipping_location" id="outside_dhaka_checkout" value="outside_dhaka" {% if shipping_location == 'outside_dhaka' %}checked{% endif %}>
+                                <label class="form-check-label d-flex justify-content-between w-100" for="outside_dhaka_checkout">
+                                    <span>Outside Dhaka</span>
+                                    <span>৳{{ shipping_rates.outside_dhaka }}</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="city" class="form-label">City/Town *</label>
+                            <select class="form-select" id="city" name="city" required>
+                                <option value="" selected disabled>Select City</option>
+                                <option value="dhaka">Dhaka</option>
+                                <option value="chittagong">Chittagong</option>
+                                <option value="khulna">Khulna</option>
+                                <option value="rajshahi">Rajshahi</option>
+                                <option value="sylhet">Sylhet</option>
+                                <option value="barisal">Barisal</option>
+                                <option value="rangpur">Rangpur</option>
+                                <option value="mymensingh">Mymensingh</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="zone" class="form-label">Zone/Area *</label>
+                            <select class="form-select" id="zone" name="zone" required>
+                                <option value="" selected disabled>Select Zone</option>
+                                <!-- Dynamic options will be loaded based on city selection -->
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="area" class="form-label">Area/Road</label>
+                            <input type="text" class="form-control" id="area" name="area">
+                        </div>
+                        <div class="col-12">
+                            <label for="address" class="form-label">Full Address *</label>
+                            <textarea class="form-control" id="address" name="shipping_address" rows="3" required></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="checkout-section mb-5">
+                    <h4 class="section-title">Additional Information</h4>
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="orderNotes" class="form-label">Order Notes (Optional)</label>
+                            <textarea class="form-control" id="orderNotes" name="order_notes" rows="3" placeholder="Special notes for delivery or product"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="col-lg-5">
+                <div class="order-summary">
+                    <div class="card mb-4">
+                        <div class="card-header bg-dark text-white">
+                            <h4 class="mb-0">Your Order</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="order-summary-items">
+                                {% for item in cart_items %}
+                                <div class="order-item d-flex justify-content-between mb-3">
+                                    <div>
+                                        <span class="item-name">{{ item.product.name }}</span>
+                                        <span class="item-quantity text-muted"> × {{ item.quantity }}</span>
+                                    </div>
+                                    <span class="item-price">৳{{ item.subtotal }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <hr>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Subtotal</span>
+                                <span>৳{{ cart_total }}</span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Shipping</span>
+                                <span class="shipping-cost">৳{{ shipping_cost }}</span>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Discount</span>
+                                <span>-৳{{ discount }}</span>
+                            </div>
+                            
+                            <hr>
+                            
+                            <div class="d-flex justify-content-between fw-bold mb-4">
+                                <span>Total</span>
+                                <span class="order-total">৳{{ total }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="payment-methods mb-4">
+                        <h4 class="section-title">Payment Method</h4>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="payment_method" id="cashOnDelivery" value="cash" checked>
+                            <label class="form-check-label" for="cashOnDelivery">
+                                Cash on Delivery
+                            </label>
+                            <div class="payment-description text-muted small mt-1">
+                                Pay with cash upon delivery.
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="payment_method" id="bkash" value="bkash">
+                            <label class="form-check-label" for="bkash">
+                                bKash
+                            </label>
+                            <div class="payment-description text-muted small mt-1">
+                                Pay via bKash mobile banking.
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="payment_method" id="nagad" value="nagad">
+                            <label class="form-check-label" for="nagad">
+                                Nagad
+                            </label>
+                            <div class="payment-description text-muted small mt-1">
+                                Pay via Nagad mobile banking.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="place-order">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="termsCheck" required>
+                            <label class="form-check-label" for="termsCheck">
+                                I have read and agree to the website's <a href="#" target="_blank">terms and conditions</a>
+                            </label>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-gold btn-lg" id="place-order-btn">Place Order</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Checkout Styles */
+    .checkout-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 20px;
+    }
+    
+    /* Notification styles */
+    .notification-success,
+    .notification-error {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        border-radius: 5px;
+        z-index: 9999;
+        color: #fff;
+        font-weight: 500;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .notification-success {
+        background-color: #51cf66;
+    }
+    
+    .notification-error {
+        background-color: #ff6b6b;
+    }
+    
+    .checkout-section {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 25px;
+        margin-bottom: 30px;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        color: #555;
+        margin-bottom: 8px;
+    }
+    
+    .form-control, .form-select {
+        padding: 12px 15px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #d4af37;
+        box-shadow: 0 0 0 0.2rem rgba(212, 175, 55, 0.25);
+    }
+    
+    /* Order Summary */
+    .order-summary {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        height: 100%;
+    }
+    
+    .order-summary .card {
+        border: none;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+    
+    .order-summary-items {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 15px;
+        padding-right: 5px;
+    }
+    
+    .order-item {
+        padding: 8px 0;
+    }
+    
+    .item-name {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .item-quantity {
+        font-size: 0.9rem;
+    }
+    
+    .item-price {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    .order-total {
+        color: #d4af37;
+        font-size: 1.2rem;
+    }
+    
+    /* Payment Methods */
+    .payment-methods {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 25px;
+    }
+    
+    .form-check-input:checked {
+        background-color: #d4af37;
+        border-color: #d4af37;
+    }
+    
+    .payment-description {
+        padding-left: 24px;
+    }
+    
+    /* Place Order */
+    .place-order {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        padding: 25px;
+    }
+    
+    /* Gold Button (from other templates) */
+    .btn-gold {
+        background-color: #d4af37;
+        color: #1a1a1a;
+        padding: 12px 30px;
+        border-radius: 30px;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .btn-gold:hover {
+        background-color: #c4a030;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        color: #1a1a1a;
+    }
+    
+    /* Responsive Adjustments */
+    @media (max-width: 992px) {
+        .checkout-title {
+            font-size: 2rem;
+        }
+        
+        .checkout-section, .payment-methods, .place-order {
+            padding: 20px;
+        }
+        
+        .order-summary {
+            margin-top: 20px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Helper function to show notifications
+        function showNotification(type, message) {
+            let notificationClass = 'notification-success';
+            if (type === 'error') {
+                notificationClass = 'notification-error';
+            }
+            
+            const notification = $(`<div class="${notificationClass}">${message}</div>`);
+            $('body').append(notification);
+            
+            notification.fadeIn(300);
+            setTimeout(function() {
+                notification.fadeOut(300, function() {
+                    $(this).remove();
+                });
+            }, 3000);
+        }
+        
+        // City/Zone dynamic dropdown
+        const citySelect = document.getElementById('city');
+        const zoneSelect = document.getElementById('zone');
+        
+        // Shipping location radio buttons
+        const shippingLocationRadios = document.querySelectorAll('input[name="shipping_location"]');
+        
+        // Handle shipping location change
+        shippingLocationRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                updateShippingCost(this.value);
+            });
+        });
+        
+        // Function to update shipping cost via AJAX
+        function updateShippingCost(location) {
+            $.ajax({
+                url: '{% url "checkout" %}',
+                type: 'POST',
+                data: {
+                    'shipping_location': location,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(data) {
+                    if (data.success) {
+                        // Update shipping cost display
+                        const shippingCostElements = document.querySelectorAll('.shipping-cost');
+                        shippingCostElements.forEach(el => {
+                            el.textContent = '৳' + data.shipping_cost;
+                        });
+                        
+                        // Update total
+                        const orderTotalElements = document.querySelectorAll('.order-total');
+                        orderTotalElements.forEach(el => {
+                            el.textContent = '৳' + data.total;
+                        });
+                        
+                        // Show success notification
+                        showNotification('success', 'Shipping location updated');
+                    } else {
+                        showNotification('error', data.message || 'Failed to update shipping cost');
+                    }
+                },
+                error: function(xhr) {
+                    let errorMessage = 'Failed to update shipping cost';
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.message) {
+                            errorMessage = response.message;
+                        }
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                    }
+                    showNotification('error', errorMessage);
+                }
+            });
+        }
+        
+        // Sample data - in a real project, this would come from an API or database
+        const zones = {
+            dhaka: ['Mirpur', 'Uttara', 'Gulshan', 'Banani', 'Dhanmondi', 'Mohammadpur', 'Bashundhara'],
+            chittagong: ['Agrabad', 'Nasirabad', 'Halishahar', 'Khulshi', 'Patenga'],
+            khulna: ['Sonadanga', 'Khalishpur', 'Daulatpur', 'Boyra'],
+            rajshahi: ['Boalia', 'Motihar', 'Rajpara', 'Shahmokhdum'],
+            sylhet: ['Bondor Bazar', 'Ambarkhana', 'Subid Bazar', 'Zindabazar'],
+            barisal: ['Rupatali', 'Kashipur', 'Nathullabad', 'Amtala'],
+            rangpur: ['Dhap', 'Bodorganj', 'Jummapara', 'Pourobazar'],
+            mymensingh: ['Chorpara', 'Ganginarpar', 'Valuka', 'Durgabari']
+        };
+        
+        citySelect.addEventListener('change', function() {
+            const selectedCity = this.value;
+            
+            // Clear all current options
+            zoneSelect.innerHTML = '<option value="" selected disabled>Select Zone</option>';
+            
+            // Add new options based on selected city
+            if(selectedCity && zones[selectedCity]) {
+                zones[selectedCity].forEach(zone => {
+                    const option = document.createElement('option');
+                    option.value = zone.toLowerCase();
+                    option.textContent = zone;
+                    zoneSelect.appendChild(option);
+                });
+            }
+        });
+        
+        // Form validation
+        const checkoutForm = document.getElementById('checkout-form');
+        const placeOrderBtn = document.getElementById('place-order-btn');
+        
+        if(checkoutForm) {
+            checkoutForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Simple client-side validation
+                const requiredFields = checkoutForm.querySelectorAll('[required]');
+                let isValid = true;
+                
+                requiredFields.forEach(field => {
+                    if(!field.value.trim()) {
+                        isValid = false;
+                        field.classList.add('is-invalid');
+                    } else {
+                        field.classList.remove('is-invalid');
+                    }
+                });
+                
+                if(isValid) {
+                    // Show loading state on button
+                    placeOrderBtn.disabled = true;
+                    placeOrderBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+                    
+                    // Submit the form (in a real project, this would likely use AJAX)
+                    setTimeout(() => {
+                        checkoutForm.submit();
+                    }, 1000);
+                } else {
+                    // Scroll to the first invalid field
+                    const firstInvalid = checkoutForm.querySelector('.is-invalid');
+                    if(firstInvalid) {
+                        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %} 

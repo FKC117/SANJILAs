@@ -1,172 +1,1191 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block title %}Home{% endblock %}
+
 {% block content %}
-<section class="mx-auto max-w-screen-2xl px-4 md:px-8">
-  <div class="mb-8 flex flex-wrap justify-between md:mb-16">
-    <div class="mb-6 flex w-full flex-col justify-center sm:mb-12 lg:mb-0 lg:w-1/3 lg:pb-24 lg:pt-46">
-      <h1 class="mb-4 text-4xl font-bold text-black sm:text-5xl md:mb-8 md:text-6xl">Elegant at it's <br />Best!</h1>
+<!-- Add CSRF token at the beginning of the content block -->
+{% csrf_token %}
 
-      <p class="max-w-md leading-relaxed text-gray-500 xl:text-lg">What is the purpose of Jewellery if you don't look elegant? SANJILA's collections will take your look to the next level.</p>
+<!-- Hero Section with Dynamic Content -->
+{% if hero_content and hero_images %}
+<section class="hero-section">
+    <div id="heroCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel">
+        <div class="carousel-indicators">
+            {% for image in hero_images %}
+            <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="{{ forloop.counter0 }}" {% if forloop.first %}class="active"{% endif %} aria-label="Slide {{ forloop.counter }}"></button>
+            {% endfor %}
+        </div>
+        <div class="carousel-inner">
+            {% for image in hero_images %}
+            <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                <img src="{{ image.image.url }}" class="d-block w-100" alt="{{ image.alt_text }}">
+                <div class="carousel-caption">
+                    <h1>{{ hero_content.title }}</h1>
+                    <p>{{ hero_content.subtitle }}</p>
+                    <a href="{{ hero_content.button_url }}" class="btn btn-gold">{{ hero_content.button_text }}</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+        </button>
     </div>
+</section>
+{% endif %}
 
-    <div class="mb-12 flex w-full md:mb-16 lg:w-2/3">
-      <div class="relative left-12 top-12 z-10 -ml-12 overflow-hidden rounded-lg bg-gray-100 shadow-lg md:left-16 md:top-16 lg:ml-0">
-        <img src="./Static/Cutomer 2.jpg" loading="lazy" alt="Photo by Kaung Htet" class="h-full w-full object-cover object-center" />
-      </div>
+<!-- All Products Section -->
+<section class="products-section py-5">
+    <div class="container">
+        <h2 class="section-title text-center mb-5">Our Products</h2>
+        <div class="row">
+            {% for product in products %}
+            <div class="col-md-3 mb-4">
+                <div class="product-card">
+                    <div class="product-img-container">
+                        <!-- Image Slider for Multiple Images -->
+                        <div id="allProductsCarousel{{ product.id }}" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                {% if product.images.all %}
+                                    {% for image in product.images.all %}
+                                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                        <img src="{{ image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="carousel-item active">
+                                        <div class="product-img-placeholder d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% if product.images.all.count > 1 %}
+                            <button class="carousel-control-prev" type="button" data-bs-target="#allProductsCarousel{{ product.id }}" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#allProductsCarousel{{ product.id }}" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                            {% endif %}
+                        </div>
 
-      <div class="overflow-hidden rounded-lg bg-gray-100 shadow-lg">
-        <img src="./Static/Customer 3.jpg" loading="lazy" alt="Photo by Manny Moreno" class="h-full w-full object-cover object-center" />
-      </div>
+                        <!-- Badges -->
+                        {% if product.discount_percentage > 0 %}
+                        <span class="discount-badge">-{{ product.discount_percentage }}%</span>
+                        {% endif %}
+                        
+                        {% if product.new_arrival %}
+                        <span class="new-badge">New</span>
+                        {% endif %}
+                        
+                        {% if product.preorder %}
+                        <span class="preorder-badge">Pre-order</span>
+                        {% endif %}
+                        
+                        {% if product.best_selling %}
+                        <span class="bestseller-badge">Best Seller</span>
+                        {% endif %}
+                        
+                        {% if product.trending %}
+                        <span class="trending-badge">Trending</span>
+                        {% endif %}
+
+                        <!-- Quick actions -->
+                        <div class="product-actions">
+                            <button class="action-btn add-to-cart" data-product-id="{{ product.id }}">
+                                <i class="fas fa-shopping-cart"></i>
+                            </button>
+                            <a href="{% url 'product_detail' product.slug %}" class="action-btn">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="product-content">
+                        <h4 class="product-title">
+                            <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
+                        </h4>
+                        {% if product.short_description %}
+                        <p class="product-short-desc">{{ product.short_description|truncatechars:60 }}</p>
+                        {% endif %}
+                        <div class="product-price">
+                            {% if product.discount_price %}
+                            <span class="current-price">৳{{ product.discount_price }}</span>
+                            <span class="original-price">৳{{ product.selling_price }}</span>
+                            {% else %}
+                            <span class="current-price">৳{{ product.selling_price }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="product-meta">
+                            {% if product.sku %}
+                            <span class="product-sku">SKU: {{ product.sku }}</span>
+                            {% endif %}
+                            <span class="product-category">{{ product.category.name }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if products.paginator.num_pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-5">
+            <ul class="pagination justify-content-center">
+                {% if products.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1" aria-label="First">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ products.previous_page_number }}" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for num in products.paginator.page_range %}
+                    {% if products.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > products.number|add:'-3' and num < products.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if products.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ products.next_page_number }}" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ products.paginator.num_pages }}" aria-label="Last">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </div>
-  </div>
-
-  <div class="flex flex-col items-center justify-between gap-8 md:flex-row">
-    <div class="flex h-12 w-64 divide-x overflow-hidden rounded-lg border">
-      <a href="#" class="flex w-1/3 items-center justify-center text-gray-500 transition duration-100 hover:bg-gray-100 active:bg-gray-200">Gold Plated</a>
-      <a href="#" class="flex w-1/3 items-center justify-center text-gray-500 transition duration-100 hover:bg-gray-100 active:bg-gray-200">Pearl</a>
-      <a href="#" class="flex w-1/3 items-center justify-center text-gray-500 transition duration-100 hover:bg-gray-100 active:bg-gray-200">Pakistani</a>
-    </div>
-
-    <!-- social - start -->
-    <div class="flex items-center justify-center gap-4 lg:justify-start">
-      <span class="text-sm font-semibold uppercase tracking-widest text-gray-400 sm:text-base">Social</span>
-      <span class="h-px w-12 bg-gray-200"></span>
-
-      <div class="flex gap-4">
-        <a href="#" target="_blank" class="text-gray-400 transition duration-100 hover:text-gray-500 active:text-gray-600">
-          <svg class="h-5 w-5" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-          </svg>
-        </a>
-
-        <a href="#" target="_blank" class="text-gray-400 transition duration-100 hover:text-gray-500 active:text-gray-600">
-          <svg class="h-5 w-5" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z" />
-          </svg>
-        </a>
-
-        <a href="#" target="_blank" class="text-gray-400 transition duration-100 hover:text-gray-500 active:text-gray-600">
-          <svg class="h-5 w-5" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19.4168 2.4594C17.7648 0.873472 15.4785 0 12.9793 0C9.1616 0 6.81353 1.56493 5.51603 2.87767C3.91693 4.49547 3 6.64362 3 8.77138C3 11.4429 4.11746 13.4934 5.98876 14.2563C6.11439 14.3078 6.24081 14.3337 6.36475 14.3337C6.75953 14.3337 7.07233 14.0754 7.1807 13.661C7.24389 13.4233 7.39024 12.8369 7.45389 12.5823C7.59011 12.0795 7.48005 11.8377 7.18295 11.4876C6.64173 10.8472 6.38969 10.0899 6.38969 9.10438C6.38969 6.17698 8.56948 3.06578 12.6095 3.06578C15.8151 3.06578 17.8064 4.88772 17.8064 7.82052C17.8064 9.67124 17.4077 11.3852 16.6837 12.6468C16.1805 13.5235 15.2957 14.5685 13.9375 14.5685C13.3501 14.5685 12.8225 14.3272 12.4896 13.9066C12.1751 13.5089 12.0714 12.9953 12.1979 12.4599C12.3408 11.855 12.5357 11.2241 12.7243 10.6141C13.0682 9.5001 13.3933 8.44789 13.3933 7.60841C13.3933 6.17252 12.5106 5.20769 11.1969 5.20769C9.52737 5.20769 8.21941 6.90336 8.21941 9.06805C8.21941 10.1297 8.50155 10.9237 8.62929 11.2286C8.41896 12.1197 7.16899 17.4176 6.93189 18.4166C6.79478 18.9997 5.96893 23.6059 7.33586 23.9731C8.87168 24.3858 10.2445 19.8997 10.3842 19.3928C10.4975 18.9806 10.8937 17.4216 11.1365 16.4634C11.878 17.1775 13.0717 17.6603 14.2333 17.6603C16.4231 17.6603 18.3924 16.6749 19.7786 14.8858C21.1229 13.1505 21.8633 10.7318 21.8633 8.0757C21.8632 5.99923 20.9714 3.95209 19.4168 2.4594Z" />
-          </svg>
-        </a>
-      </div>
-    </div>
-    <!-- social - end -->
-  </div>
 </section>
 
-  <!-- Rest of your content sections -->
+<!-- New Arrivals Section -->
+<section class="products-section py-5 bg-light">
+    <div class="container">
+        <h2 class="section-title text-center mb-5">New Arrivals</h2>
+        <div class="row">
+            {% for product in new_arrival %}
+            <div class="col-md-3 mb-4">
+                <div class="product-card">
+                    <div class="product-img-container">
+                        <!-- Image Slider for Multiple Images -->
+                        <div id="productCarousel{{ product.id }}" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                {% if product.images.all %}
+                                    {% for image in product.images.all %}
+                                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                        <img src="{{ image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="carousel-item active">
+                                        <div class="product-img-placeholder d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% if product.images.all.count > 1 %}
+                            <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel{{ product.id }}" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#productCarousel{{ product.id }}" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        <!-- Badges -->
+                        {% if product.discount_percentage > 0 %}
+                        <span class="discount-badge">-{{ product.discount_percentage }}%</span>
+                        {% endif %}
+                        
+                        {% if product.new_arrival %}
+                        <span class="new-badge">New</span>
+                        {% endif %}
+                        
+                        {% if product.preorder %}
+                        <span class="preorder-badge">Pre-order</span>
+                        {% endif %}
+
+                        <!-- Quick actions -->
+                        <div class="product-actions">
+                            <button class="action-btn add-to-cart" data-product-id="{{ product.id }}">
+                                <i class="fas fa-shopping-cart"></i>
+                            </button>
+                            <a href="{% url 'product_detail' product.slug %}" class="action-btn">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="product-content">
+                        <h4 class="product-title">
+                            <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
+                        </h4>
+                        {% if product.short_description %}
+                        <p class="product-short-desc">{{ product.short_description|truncatechars:60 }}</p>
+                        {% endif %}
+                        <div class="product-price">
+                            {% if product.discount_price %}
+                            <span class="current-price">৳{{ product.discount_price }}</span>
+                            <span class="original-price">৳{{ product.selling_price }}</span>
+                            {% else %}
+                            <span class="current-price">৳{{ product.selling_price }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="product-meta">
+                            {% if product.sku %}
+                            <span class="product-sku">SKU: {{ product.sku }}</span>
+                            {% endif %}
+                            <span class="product-category">{{ product.category.name }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-4">
+            <a href="#" class="btn btn-outline-dark">View All</a>
+        </div>
+    </div>
+</section>
+
+<!-- Best Selling Section -->
+<section class="products-section py-5">
+    <div class="container">
+        <h2 class="section-title text-center mb-5">Best Selling</h2>
+        <div class="row">
+            {% for product in best_selling %}
+            <div class="col-md-3 mb-4">
+                <div class="product-card">
+                    <div class="product-img-container">
+                        <!-- Image Slider for Multiple Images -->
+                        <div id="bestSellingCarousel{{ product.id }}" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                {% if product.images.all %}
+                                    {% for image in product.images.all %}
+                                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                        <img src="{{ image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="carousel-item active">
+                                        <div class="product-img-placeholder d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% if product.images.all.count > 1 %}
+                            <button class="carousel-control-prev" type="button" data-bs-target="#bestSellingCarousel{{ product.id }}" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#bestSellingCarousel{{ product.id }}" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        <!-- Badges -->
+                        {% if product.discount_percentage > 0 %}
+                        <span class="discount-badge">-{{ product.discount_percentage }}%</span>
+                        {% endif %}
+                        
+                        {% if product.new_arrival %}
+                        <span class="new-badge">New</span>
+                        {% endif %}
+                        
+                        {% if product.preorder %}
+                        <span class="preorder-badge">Pre-order</span>
+                        {% endif %}
+                        
+                        {% if product.best_selling %}
+                        <span class="bestseller-badge">Best Seller</span>
+                        {% endif %}
+
+                        <!-- Quick actions -->
+                        <div class="product-actions">
+                            <button class="action-btn add-to-cart" data-product-id="{{ product.id }}">
+                                <i class="fas fa-shopping-cart"></i>
+                            </button>
+                            <a href="{% url 'product_detail' product.slug %}" class="action-btn">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="product-content">
+                        <h4 class="product-title">
+                            <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
+                        </h4>
+                        {% if product.short_description %}
+                        <p class="product-short-desc">{{ product.short_description|truncatechars:60 }}</p>
+                        {% endif %}
+                        <div class="product-price">
+                            {% if product.discount_price %}
+                            <span class="current-price">৳{{ product.discount_price }}</span>
+                            <span class="original-price">৳{{ product.selling_price }}</span>
+                            {% else %}
+                            <span class="current-price">৳{{ product.selling_price }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="product-meta">
+                            {% if product.sku %}
+                            <span class="product-sku">SKU: {{ product.sku }}</span>
+                            {% endif %}
+                            <span class="product-category">{{ product.category.name }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-4">
+            <a href="#" class="btn btn-outline-dark">View All</a>
+        </div>
+    </div>
+</section>
+
+<!-- Trending Products Section -->
+<section class="products-section py-5 bg-light">
+    <div class="container">
+        <h2 class="section-title text-center mb-5">Trending Now</h2>
+        <div class="row">
+            {% for product in trending %}
+            <div class="col-md-3 mb-4">
+                <div class="product-card">
+                    <div class="product-img-container">
+                        <!-- Image Slider for Multiple Images -->
+                        <div id="trendingCarousel{{ product.id }}" class="carousel slide" data-bs-ride="carousel">
+                            <div class="carousel-inner">
+                                {% if product.images.all %}
+                                    {% for image in product.images.all %}
+                                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                        <img src="{{ image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="carousel-item active">
+                                        <div class="product-img-placeholder d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-image text-muted"></i>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% if product.images.all.count > 1 %}
+                            <button class="carousel-control-prev" type="button" data-bs-target="#trendingCarousel{{ product.id }}" data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Previous</span>
+                            </button>
+                            <button class="carousel-control-next" type="button" data-bs-target="#trendingCarousel{{ product.id }}" data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Next</span>
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        <!-- Badges -->
+                        {% if product.discount_percentage > 0 %}
+                        <span class="discount-badge">-{{ product.discount_percentage }}%</span>
+                        {% endif %}
+                        
+                        {% if product.new_arrival %}
+                        <span class="new-badge">New</span>
+                        {% endif %}
+                        
+                        {% if product.preorder %}
+                        <span class="preorder-badge">Pre-order</span>
+                        {% endif %}
+                        
+                        {% if product.trending %}
+                        <span class="trending-badge">Trending</span>
+                        {% endif %}
+
+                        <!-- Quick actions -->
+                        <div class="product-actions">
+                            <button class="action-btn add-to-cart" data-product-id="{{ product.id }}">
+                                <i class="fas fa-shopping-cart"></i>
+                            </button>
+                            <a href="{% url 'product_detail' product.slug %}" class="action-btn">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="product-content">
+                        <h4 class="product-title">
+                            <a href="{% url 'product_detail' product.slug %}">{{ product.name }}</a>
+                        </h4>
+                        {% if product.short_description %}
+                        <p class="product-short-desc">{{ product.short_description|truncatechars:60 }}</p>
+                        {% endif %}
+                        <div class="product-price">
+                            {% if product.discount_price %}
+                            <span class="current-price">৳{{ product.discount_price }}</span>
+                            <span class="original-price">৳{{ product.selling_price }}</span>
+                            {% else %}
+                            <span class="current-price">৳{{ product.selling_price }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="product-meta">
+                            {% if product.sku %}
+                            <span class="product-sku">SKU: {{ product.sku }}</span>
+                            {% endif %}
+                            <span class="product-category">{{ product.category.name }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-4">
+            <a href="#" class="btn btn-outline-dark">View All</a>
+        </div>
+    </div>
+</section>
 {% endblock %}
 
 {% block extra_css %}
 <style>
+    /* Hero Section Styles */
     .hero-section {
-        height: 90vh;
-        min-height: 600px;
         margin-top: -80px;
     }
     
-    .text-content {
-        background: #1a1a1a;
-        position: relative;
-        z-index: 2;
-    }
-    
-    .carousel-column {
-        position: relative;
+    .carousel-item {
+        height: 70vh;
+        min-height: 500px;
+        background-size: cover;
+        background-position: center;
     }
     
     .carousel-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .carousel-caption {
+        bottom: 30%;
+        background-color: rgba(0, 0, 0, 0.4);
+        padding: 25px;
+        border-radius: 10px;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .carousel-caption h1 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 15px;
+    }
+    
+    .carousel-caption p {
+        margin-bottom: 20px;
+        font-size: 1.2rem;
+    }
+    
+    /* Category Section Styles */
+    .categories-section {
+        padding: 80px 0;
+    }
+    
+    .category-card {
+        background-color: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .category-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .category-img-container {
+        position: relative;
+        overflow: hidden;
+        height: 200px;
+        background-color: #f5f5f5;
+    }
+    
+    .category-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s;
+    }
+    
+    .category-img-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 3rem;
+    }
+    
+    .category-card:hover .category-img {
+        transform: scale(1.05);
+    }
+    
+    .category-content {
+        padding: 25px;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .category-content h3 {
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1a1a1a;
+    }
+    
+    .category-content p {
+        margin-bottom: 20px;
+        color: #666;
+        flex-grow: 1;
+    }
+    
+    .btn-link {
+        display: inline-flex;
+        align-items: center;
+        color: #d4af37;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-link i {
+        margin-left: 8px;
+        transition: transform 0.3s ease;
+    }
+    
+    .btn-link:hover {
+        color: #b49230;
+    }
+    
+    .btn-link:hover i {
+        transform: translateX(5px);
+    }
+    
+    /* Products Section Styles */
+    .section-title {
+        font-size: 2.5rem;
+        position: relative;
+        margin-bottom: 50px;
+        color: #1a1a1a;
+        font-weight: 700;
+    }
+    
+    .section-title::after {
+        content: '';
+        position: absolute;
+        bottom: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 3px;
+        background-color: #d4af37;
+    }
+    
+    .product-card {
+        background-color: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    }
+    
+    .product-img-container {
+        position: relative;
+        overflow: hidden;
+        padding-top: 100%; /* 1:1 Aspect Ratio */
+    }
+    
+    .product-img-container .carousel {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    
+    .product-img-container .carousel-inner,
+    .product-img-container .carousel-item {
+        height: 100%;
+    }
+    
+    .product-img {
+        width: 100%;
         height: 100%;
         object-fit: cover;
         object-position: center;
     }
     
-    .content-wrapper {
-        max-width: 600px;
-        margin-left: auto;
+    .product-img-placeholder {
+        width: 100%;
+        height: 100%;
+        background-color: #f5f5f5;
+        font-size: 2rem;
+        color: #ccc;
+    }
+    
+    /* Badges */
+    .discount-badge,
+    .new-badge,
+    .preorder-badge,
+    .bestseller-badge,
+    .trending-badge {
+        position: absolute;
+        padding: 5px 10px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        border-radius: 30px;
+        z-index: 2;
+    }
+    
+    .discount-badge {
+        top: 10px;
+        left: 10px;
+        background-color: #ff6b6b;
+        color: white;
+    }
+    
+    .new-badge {
+        top: 10px;
+        right: 10px;
+        background-color: #51cf66;
+        color: white;
+    }
+    
+    .preorder-badge {
+        top: 45px;
+        right: 10px;
+        background-color: #fcc419;
+        color: #212529;
+    }
+    
+    .bestseller-badge {
+        top: 45px;
+        left: 10px;
+        background-color: #4dabf7;
+        color: white;
+    }
+    
+    .trending-badge {
+        top: 45px;
+        left: 10px;
+        background-color: #da77f2;
+        color: white;
+    }
+    
+    .product-actions {
+        position: absolute;
+        bottom: -60px;
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        padding: 15px;
+        background-color: rgba(255, 255, 255, 0.9);
+        transition: bottom 0.3s ease;
+    }
+    
+    .product-card:hover .product-actions {
+        bottom: 0;
+    }
+    
+    .action-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: white;
+        color: #1a1a1a;
+        border: 1px solid #eee;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    
+    .action-btn:hover {
+        background-color: #d4af37;
+        color: white;
+        border-color: #d4af37;
+    }
+    
+    .product-content {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+    }
+    
+    .product-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+    
+    .product-title a {
+        color: #1a1a1a;
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+    
+    .product-title a:hover {
+        color: #d4af37;
+    }
+    
+    .product-short-desc {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 15px;
+        line-height: 1.5;
+    }
+    
+    .product-price {
+        margin-bottom: 15px;
+    }
+    
+    .current-price {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #d4af37;
+    }
+    
+    .original-price {
+        font-size: 0.9rem;
+        color: #999;
+        text-decoration: line-through;
+        margin-left: 5px;
+    }
+    
+    .product-meta {
+        margin-top: auto;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: #777;
+    }
+    
+    .product-sku,
+    .product-category {
+        padding: 2px 8px;
+        background-color: #f5f5f5;
+        border-radius: 30px;
     }
     
     .btn-gold {
         background-color: #d4af37;
-        color: #1a1a1a;
-        padding: 15px 40px;
+        color: white;
+        padding: 10px 25px;
         border-radius: 30px;
-        font-weight: 700;
-        letter-spacing: 1px;
+        font-weight: 600;
+        border: none;
         transition: all 0.3s ease;
     }
     
     .btn-gold:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.3);
+        background-color: #c4a030;
+        transform: translateY(-2px);
+        color: white;
     }
     
-    /* Mobile Styles */
+    /* Carousel controls in product cards */
+    .product-img-container .carousel-control-prev,
+    .product-img-container .carousel-control-next {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.7);
+        opacity: 0;
+        transition: opacity 0.3s;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+    
+    .product-img-container .carousel-control-prev-icon,
+    .product-img-container .carousel-control-next-icon {
+        width: 20px;
+        height: 20px;
+        filter: invert(1) grayscale(100);
+    }
+    
+    .product-card:hover .carousel-control-prev,
+    .product-card:hover .carousel-control-next {
+        opacity: 1;
+    }
+    
+    /* Responsive Styles */
     @media (max-width: 992px) {
-        .hero-section {
-            height: auto;
-            min-height: auto;
-            margin-top: 0;
+        .carousel-caption {
+            bottom: 20%;
+            padding: 15px;
         }
         
-        .text-content {
-            order: 2;
-            padding: 60px 0;
-            text-align: center;
+        .carousel-caption h1 {
+            font-size: 2rem;
         }
         
-        .carousel-column {
-            order: 1;
-            height: 400px;
-        }
-        
-        .content-wrapper {
-            max-width: 100%;
-            margin: 0 auto;
-        }
-        
-        .display-3 {
-            font-size: 2.5rem;
-        }
-        
-        .lead {
-            font-size: 1.1rem;
-        }
-        
-        .btn-gold {
-            padding: 12px 30px;
+        .carousel-caption p {
             font-size: 1rem;
         }
         
-        .carousel-indicators {
-            bottom: 20px;
+        .section-title {
+            font-size: 2rem;
         }
     }
     
-    /* Desktop Enhancements */
-    @media (min-width: 992px) {
-        .carousel-indicators {
-            left: auto;
-            right: 20px;
-            bottom: 40px;
-            flex-direction: column;
+    @media (max-width: 768px) {
+        .carousel-item {
+            height: 50vh;
+            min-height: 400px;
         }
         
-        .carousel-indicators button {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin: 5px 0;
+        .carousel-caption {
+            bottom: 10%;
+            padding: 10px;
         }
         
-        .carousel-control-prev,
-        .carousel-control-next {
-            display: none;
+        .carousel-caption h1 {
+            font-size: 1.8rem;
+        }
+        
+        .section-title {
+            font-size: 1.8rem;
+        }
+        
+        .product-title {
+            font-size: 1rem;
         }
     }
+    
+    @media (max-width: 576px) {
+        .category-img-container {
+            height: 150px;
+        }
+        
+        .category-content {
+            padding: 15px;
+        }
+        
+        .category-content h3 {
+            font-size: 1.2rem;
+        }
+        
+        .product-content {
+            padding: 15px;
+        }
+        
+        .current-price {
+            font-size: 1rem;
+        }
+    }
+
+    /* Subcategories List Styles */
+    .subcategories-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .subcategory-link {
+        display: inline-block;
+        padding: 4px 12px;
+        background-color: #f8f9fa;
+        border-radius: 20px;
+        color: #666;
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+
+    .subcategory-link:hover {
+        background-color: #d4af37;
+        color: #fff;
+    }
+
+    /* Pagination Styles */
+    .pagination {
+        margin-top: 30px;
+    }
+
+    .page-link {
+        color: #1a1a1a;
+        border: 1px solid #dee2e6;
+        padding: 8px 16px;
+        transition: all 0.3s ease;
+    }
+
+    .page-link:hover {
+        color: #d4af37;
+        background-color: #f8f9fa;
+        border-color: #d4af37;
+    }
+
+    .page-item.active .page-link {
+        background-color: #d4af37;
+        border-color: #d4af37;
+        color: #fff;
+    }
+
+    .page-item.disabled .page-link {
+        color: #6c757d;
+        pointer-events: none;
+        background-color: #fff;
+        border-color: #dee2e6;
+    }
+
+    /* Updated Category Section Styles */
+    .category-img-container {
+        position: relative;
+        overflow: hidden;
+        height: 200px;
+        background-color: #f5f5f5;
+    }
+
+    .category-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s;
+    }
+
+    .category-img-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 3rem;
+    }
+
+    .category-card:hover .category-img {
+        transform: scale(1.05);
+    }
+
+    /* Product Card Link Fix */
+    .product-card {
+        position: relative;
+    }
+
+    .product-card a.product-link {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
+    }
+
+    .product-card .product-actions {
+        z-index: 2;
+    }
+
+    .product-card .product-title a {
+        position: relative;
+        z-index: 2;
+    }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add product link overlay to all product cards
+    document.querySelectorAll('.product-card').forEach(card => {
+        const productLink = card.querySelector('.product-title a').getAttribute('href');
+        const linkOverlay = document.createElement('a');
+        linkOverlay.href = productLink;
+        linkOverlay.className = 'product-link';
+        card.insertBefore(linkOverlay, card.firstChild);
+    });
+
+    // Function to show notification
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} notification`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            padding: 15px 25px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            animation: slideIn 0.5s ease-out;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.5s ease-out';
+            setTimeout(() => notification.remove(), 500);
+        }, 3000);
+    }
+
+    // Add to cart functionality
+    document.querySelectorAll('.action-btn.add-to-cart').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const productId = this.dataset.productId;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            try {
+                const response = await fetch('{% url "cart_add" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        product_id: productId,
+                        quantity: 1
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(data.message);
+                    // Update cart count in navbar if it exists
+                    const cartCount = document.querySelector('.cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = data.cart_count;
+                    }
+                } else {
+                    showNotification(data.message || 'Failed to add product to cart', 'danger');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('An error occurred while adding to cart', 'danger');
+            }
+        });
+    });
+
+    // View product functionality
+    document.querySelectorAll('.action-btn:not(.add-to-cart)').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const productLink = this.closest('.product-card').querySelector('.product-title a').href;
+            window.location.href = productLink;
+        });
+    });
+
+    // Pagination with smooth scrolling
+    document.querySelectorAll('.pagination .page-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const href = this.getAttribute('href');
+            window.scrollTo({
+                top: document.querySelector('.products-section').offsetTop - 100,
+                behavior: 'smooth'
+            });
+            setTimeout(() => {
+                window.location.href = href;
+            }, 500);
+        });
+    });
+});
+
+// Add CSS for notification animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+
+    .notification {
+        background-color: #fff;
+        border-left: 4px solid #d4af37;
+    }
+
+    .notification.alert-success {
+        border-left-color: #28a745;
+    }
+
+    .notification.alert-danger {
+        border-left-color: #dc3545;
+    }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}
 
