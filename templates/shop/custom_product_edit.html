@@ -1,199 +1,931 @@
-{% extends 'admin/base_site.html' %}
+{% extends 'base.html' %}
 {% load static %}
+{% load crispy_forms_tags %}
 
-{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block title %}Edit Product{% endblock %}
 
-{% block branding %}
-<h1 id="site-name">
-    <a href="{% url 'admin:index' %}" style="color: #23282d; text-decoration: none; font-weight: 600; font-size: 1.5em;">
-        <img src="{% static 'admin/img/logo.png' %}" alt="{{ site_header }}" style="height: 30px; vertical-align: middle; margin-right: 10px;">
-        {{ site_header }}
-    </a>
-</h1>
-{% endblock %}
-
-{% block content %}
-<div class="wp-style-wrapper" style="padding: 20px; background: #f1f1f1; min-height: calc(100vh - 160px);">
-    <div class="wrap">
-        <h1 class="wp-heading-inline" style="font-size: 23px; font-weight: 400; margin: 0 0 20px; color: #23282d;">
-            {{ title }}
-        </h1>
-
-        <form method="post" enctype="multipart/form-data" class="wp-form">
-            {% csrf_token %}
-            
-            <!-- Main Content Column -->
-            <div style="display: flex; gap: 20px;">
-                <div style="flex: 2;">
-                    <!-- Product Details Metabox -->
-                    <div class="metabox-holder" style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px;">
-                        <div class="postbox-header" style="border-bottom: 1px solid #ccd0d4; padding: 10px 12px;">
-                            <h2 style="font-size: 14px; margin: 0; color: #23282d;">Product Information</h2>
-                        </div>
-                        <div class="inside" style="padding: 12px;">
-                            <div class="form-fields">
-                                {% for field in product_form %}
-                                    <div class="form-field" style="margin-bottom: 15px;">
-                                        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #23282d;">
-                                            {{ field.label }}
-                                        </label>
-                                        {{ field }}
-                                        {% if field.help_text %}
-                                        <p class="description" style="margin: 2px 0 0; color: #646970; font-size: 13px;">
-                                            {{ field.help_text }}
-                                        </p>
-                                        {% endif %}
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Product Images Metabox -->
-                    <div class="metabox-holder" style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px;">
-                        <div class="postbox-header" style="border-bottom: 1px solid #ccd0d4; padding: 10px 12px;">
-                            <h2 style="font-size: 14px; margin: 0; color: #23282d;">Product Images</h2>
-                        </div>
-                        <div class="inside" style="padding: 12px;">
-                            {{ image_formset.management_form }}
-                            <div class="image-uploader" style="margin: 15px 0;">
-                                <div class="upload-wrapper" style="border: 2px dashed #ccd0d4; padding: 20px; text-align: center; margin-bottom: 15px;">
-                                    <p style="margin: 0 0 10px; color: #646970;">Drag images here or</p>
-                                    <label class="button" style="background: #2271b1; color: #fff; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">
-                                        Select Files
-                                        <input type="file" name="images" multiple style="display: none;">
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="image-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
-                                {% for image_form in image_formset %}
-                                    <div class="image-card" style="border: 1px solid #ccd0d4; padding: 10px; background: #fff;">
-                                        {% if image_form.instance.image %}
-                                            <img src="{{ image_form.instance.image.url }}" alt="{{ image_form.instance.alt_text }}" 
-                                                 style="max-width: 100%; height: 150px; object-fit: cover; margin-bottom: 10px;">
-                                        {% endif %}
-                                        <div class="image-form-fields">
-                                            {% for field in image_form.visible_fields %}
-                                                <div style="margin-bottom: 8px;">
-                                                    {{ field }}
-                                                </div>
-                                            {% endfor %}
-                                        </div>
-                                        <div class="image-actions" style="margin-top: 10px; display: flex; align-items: center; gap: 5px;">
-                                            {{ image_form.DELETE.label_tag }}
-                                            {{ image_form.DELETE }}
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Sidebar Column -->
-                <div style="flex: 1; max-width: 300px;">
-                    <!-- Publish Metabox -->
-                    <div class="metabox-holder" style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px;">
-                        <div class="postbox-header" style="border-bottom: 1px solid #ccd0d4; padding: 10px 12px;">
-                            <h2 style="font-size: 14px; margin: 0; color: #23282d;">Publish</h2>
-                        </div>
-                        <div class="inside" style="padding: 12px;">
-                            <div class="submit-row" style="display: flex; flex-direction: column; gap: 10px;">
-                                <button type="submit" class="button button-primary" style="background: #2271b1; color: #fff; border: none; padding: 8px 12px; border-radius: 3px; cursor: pointer; width: 100%;">
-                                    Save Product
-                                </button>
-                                <a href="#" class="button" style="background: #f0f0f1; color: #2271b1; border: none; padding: 8px 12px; border-radius: 3px; text-align: center; text-decoration: none;">
-                                    Preview
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Product Categories Metabox -->
-                    <div class="metabox-holder" style="background: #fff; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-bottom: 20px;">
-                        <div class="postbox-header" style="border-bottom: 1px solid #ccd0d4; padding: 10px 12px;">
-                            <h2 style="font-size: 14px; margin: 0; color: #23282d;">Product Categories</h2>
-                        </div>
-                        <div class="inside" style="padding: 12px;">
-                            <!-- Add category checkboxes/select here -->
-                            <div class="category-checklist" style="max-height: 200px; overflow-y: auto;">
-                                <!-- Example category items -->
-                                <label style="display: block; margin: 5px 0;">
-                                    <input type="checkbox"> Necklaces
-                                </label>
-                                <label style="display: block; margin: 5px 0;">
-                                    <input type="checkbox"> Rings
-                                </label>
-                                <label style="display: block; margin: 5px 0;">
-                                    <input type="checkbox"> Earrings
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
 <style>
-    /* WordPress-like Base Styles */
-    body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-        color: #23282d;
+    .product-admin {
+        --pa-primary: #4f46e5;
+        --pa-primary-hover: #4338ca;
+        --pa-secondary: #1e40af;
+        --pa-success: #059669;
+        --pa-danger: #dc2626;
+        --pa-warning: #d97706;
+        --pa-info: #0284c7;
+        --pa-light-bg: #f8fafc;
+        --pa-border: #e2e8f0;
+        --pa-text: #1e293b;
+        --pa-text-muted: #64748b;
+        --pa-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --pa-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        min-height: 100vh;
+        background-color: var(--pa-light-bg);
+        padding: 2rem 0;
     }
 
-    input, select, textarea {
+    .product-admin .container-fluid {
+        position: relative;
+        z-index: 1;
+    }
+
+    .product-admin .admin-header {
+        background: linear-gradient(135deg, var(--pa-primary) 0%, var(--pa-primary-hover) 100%);
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: var(--pa-shadow);
+        margin-bottom: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .product-admin .form-section {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: var(--pa-shadow);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border: 1px solid var(--pa-border);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: slideInRight 0.5s ease;
+    }
+
+    .product-admin .form-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .product-admin .form-section h3 {
+        color: var(--pa-text);
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--pa-border);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .product-admin .form-section h3 i {
+        color: var(--pa-primary);
+        background: var(--pa-light-bg);
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        font-size: 1.25rem;
+    }
+
+    .product-admin .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .product-admin .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .product-admin .form-group label.custom-label {
+        font-weight: 500;
+        color: var(--pa-text);
+        margin-bottom: 0.5rem;
+        display: block;
+        transition: color 0.2s ease;
+    }
+
+    .product-admin .form-group:hover label.custom-label {
+        color: var(--pa-primary);
+    }
+
+    .product-admin .form-group .required-field::after {
+        content: " *";
+        color: var(--pa-danger);
+    }
+
+    .product-admin .form-control,
+    .product-admin .select2-container--bootstrap4 .select2-selection {
+        height: 42px;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        border: 2px solid var(--pa-border);
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+        background-color: white;
         width: 100%;
-        padding: 5px;
-        border: 1px solid #8c8f94;
-        border-radius: 3px;
-        font-size: 14px;
-        margin-top: 2px;
     }
 
-    input:focus, select:focus, textarea:focus {
-        border-color: #2271b1;
-        box-shadow: 0 0 0 1px #2271b1;
+    .product-admin .form-control:focus,
+    .product-admin .select2-container--bootstrap4.select2-container--focus .select2-selection {
+        border-color: var(--pa-primary);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
         outline: none;
     }
 
-    .errorlist {
-        color: #d63638;
-        margin: 5px 0 0;
-        padding-left: 20px;
-        list-style: none;
+    .product-admin .help-text {
+        color: var(--pa-text-muted);
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
-    .errorlist li:before {
-        content: "⚠";
-        margin-left: -20px;
-        margin-right: 5px;
+    .product-admin .help-text i {
+        color: var(--pa-info);
     }
 
-    .description {
-        font-size: 13px;
-        color: #646970;
-        margin-top: 4px;
+    .product-admin .btn-submit {
+        background: linear-gradient(135deg, var(--pa-primary) 0%, var(--pa-primary-hover) 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: none;
+        font-weight: 500;
+        box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        transition: all 0.2s ease;
     }
 
-    .button {
-        transition: all 0.15s ease-in-out;
+    .product-admin .btn-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 8px rgba(79, 70, 229, 0.3);
     }
 
-    .button-primary:hover {
-        background: #135e96 !important;
+    .product-admin .btn-back {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-weight: 500;
+        transition: all 0.2s ease;
     }
 
-    .image-actions label {
-        font-size: 13px;
-        color: #646970;
+    .product-admin .btn-back:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
     }
 
-    .image-card input[type="checkbox"] {
-        width: auto;
-        margin: 0;
+    .product-admin .btn-cancel {
+        background: var(--pa-light-bg);
+        color: var(--pa-text);
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--pa-border);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .btn-cancel:hover {
+        background: var(--pa-border);
+        color: var(--pa-text);
+    }
+
+    .product-admin .custom-control.custom-switch {
+        padding-left: 3rem;
+    }
+
+    .product-admin .custom-control-input:checked ~ .custom-control-label::before {
+        background-color: var(--pa-primary);
+        border-color: var(--pa-primary);
+    }
+
+    .product-admin .custom-control-label::before {
+        width: 2.5rem;
+        height: 1.25rem;
+        border-radius: 1rem;
+        background-color: var(--pa-border);
+        border: none;
+    }
+
+    .product-admin .custom-control-label::after {
+        width: calc(1.25rem - 4px);
+        height: calc(1.25rem - 4px);
+        border-radius: 50%;
+        background-color: white;
+        top: 2px;
+        left: 2px;
+    }
+
+    .product-admin .custom-control-input:checked ~ .custom-control-label::after {
+        transform: translateX(1.25rem);
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Select2 Customization */
+    .product-admin .select2-container {
+        width: 100% !important;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection {
+        border: 2px solid var(--pa-border);
+        border-radius: 0.5rem;
+        min-height: 42px;
+        background-color: white;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection:hover {
+        border-color: var(--pa-primary);
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection--single {
+        padding: 0.5rem 1rem;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+        color: var(--pa-text);
+        font-size: 1rem;
+        line-height: 1.5;
+        padding: 0;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
+        height: 40px;
+        right: 10px;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-dropdown {
+        border: 2px solid var(--pa-primary);
+        border-radius: 0.5rem;
+        box-shadow: var(--pa-shadow);
+        background-color: white;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-results__option {
+        padding: 0.75rem 1rem;
+        color: var(--pa-text);
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-results__option--highlighted[aria-selected] {
+        background-color: var(--pa-primary);
+        color: white;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-search--dropdown .select2-search__field {
+        border: 2px solid var(--pa-border);
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-search--dropdown .select2-search__field:focus {
+        border-color: var(--pa-primary);
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    /* Summernote Customization */
+    .product-admin .note-editor {
+        border: 2px solid var(--pa-border);
+        border-radius: 0.5rem;
+    }
+
+    .product-admin .note-editor.note-frame:focus {
+        border-color: var(--pa-primary);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .product-admin .note-toolbar {
+        background-color: var(--pa-light-bg);
+        border-bottom: 1px solid var(--pa-border);
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+
+    .product-admin .note-btn {
+        border: 1px solid var(--pa-border);
+        background-color: white;
+        color: var(--pa-text);
+    }
+
+    .product-admin .note-btn:hover {
+        background-color: var(--pa-light-bg);
+        border-color: var(--pa-primary);
+        color: var(--pa-primary);
+    }
+
+    .product-admin .note-editing-area {
+        background-color: white;
+    }
+
+    .product-admin .note-editable {
+        color: var(--pa-text);
+        padding: 1rem;
+    }
+
+    /* Image Formset Styles */
+    .product-admin .image-formset {
+        background: var(--pa-light-bg);
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    .product-admin .image-form {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: var(--pa-shadow);
+        transition: all 0.2s ease;
+        overflow: hidden;
+    }
+
+    .product-admin .image-form:hover {
+        box-shadow: var(--pa-shadow-hover);
+    }
+
+    .product-admin .image-form .card-body {
+        padding: 0;
+    }
+
+    .product-admin .image-form .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .product-admin .custom-file {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+
+    .product-admin .custom-file-input {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    .product-admin .custom-file-label {
+        display: inline-block;
+        width: 100%;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        background: white;
+        border: 2px solid var(--pa-border);
+        color: var(--pa-text);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .custom-file-input:focus + .custom-file-label {
+        border-color: var(--pa-primary);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .product-admin .image-preview {
+        width: 100%;
+        border-bottom: 1px solid var(--pa-border);
+        background: var(--pa-light-bg);
+    }
+
+    .product-admin .image-preview img {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        height: 300px;
+        object-fit: contain;
+    }
+
+    .product-admin .add-image-form {
+        background: var(--pa-primary);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .add-image-form:hover {
+        background: var(--pa-primary-hover);
+        transform: translateY(-1px);
+    }
+
+    .product-admin .delete-image-form {
+        background: var(--pa-danger);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .delete-image-form:hover {
+        background: #dc2626;
+        transform: translateY(-1px);
     }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="product-admin">
+    <div class="container-fluid py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- Page Header -->
+                <div class="admin-header animate__animated animate__fadeIn">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="mb-2">Edit Product</h1>
+                            <p class="mb-0">Update your product information</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'custom_product_list' %}" class="btn btn-back">
+                                <i class="fas fa-arrow-left"></i> Back to Products
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                {% if messages %}
+                <div class="messages mb-4">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} animate__animated animate__fadeInDown">
+                        {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                        {% elif message.tags == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                        {% elif message.tags == 'warning' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {% else %}
+                        <i class="fas fa-info-circle"></i>
+                        {% endif %}
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+                    <!-- Basic Information Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-info-circle"></i> Basic Information</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label required-field">Product Name</label>
+                                    {{ product_form.name }}
+                                    <small class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        Enter a clear and descriptive name for your product
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label required-field">Category</label>
+                                    {{ product_form.category }}
+                                    <small class="help-text">
+                                        <i class="fas fa-tag"></i>
+                                        Select the main category for your product
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label required-field">Subcategory</label>
+                                    {{ product_form.subcategory }}
+                                    <small class="help-text">
+                                        <i class="fas fa-tags"></i>
+                                        Choose a specific subcategory
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label">Heading</label>
+                                    {{ product_form.heading }}
+                                    <small class="help-text">
+                                        <i class="fas fa-heading"></i>
+                                        A catchy headline for your product (optional)
+                                    </small>
+                                    </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="custom-label">Short Description</label>
+                            {{ product_form.short_description }}
+                            <small class="help-text">
+                                <i class="fas fa-align-left"></i>
+                                A brief summary of your product (max 500 characters)
+                            </small>
+                    </div>
+                        <div class="form-group">
+                            <label class="custom-label">Full Description</label>
+                            {{ product_form.description }}
+                            <small class="help-text">
+                                <i class="fas fa-align-justify"></i>
+                                Detailed description with formatting options
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Images Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-images"></i> Product Images</h3>
+                        <div class="image-formset">
+                            {{ image_formset.management_form }}
+                            <div class="row" id="image-forms-container">
+                                {% for form in image_formset %}
+                                    <div class="col-md-4 mb-3 image-form-wrapper">
+                                        <div class="image-form card">
+                                            <div class="card-body p-0">
+                                                {{ form.id }}
+                                                <!-- Image Preview at the top -->
+                                                <div class="image-preview {% if not form.instance.image %}d-none{% endif %}">
+                                                    {% if form.instance.image %}
+                                                        <img src="{{ form.instance.image.url }}" class="img-fluid w-100" style="height: 300px; object-fit: contain; background: #f8f9fa;">
+                                                    {% else %}
+                                                        <img src="" class="img-fluid w-100" style="height: 300px; object-fit: contain; background: #f8f9fa;">
+                                                    {% endif %}
+                                                </div>
+                                                <!-- Form controls below image -->
+                                                <div class="p-3">
+                                                    <div class="form-group">
+                                                        <label class="custom-label">Image</label>
+                                                        <div class="custom-file">
+                                                            {{ form.image }}
+                                                            <label class="custom-file-label" for="{{ form.image.id_for_label }}">
+                                                                {% if form.instance.image %}
+                                                                    {{ form.instance.image.name|slice:"15:" }}
+                                                                {% else %}
+                                                                    Choose file...
+                                                                {% endif %}
+                                                            </label>
+                                                        </div>
+                                                        {% if form.image.errors %}
+                                                            <div class="invalid-feedback d-block">
+                                                                {{ form.image.errors }}
+                                                            </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label class="custom-label">Alt Text</label>
+                                                        {{ form.alt_text }}
+                                                        <small class="help-text">
+                                                            <i class="fas fa-info-circle"></i>
+                                                            Describe the image for accessibility
+                                                        </small>
+                                                    </div>
+                                                    {% if form.instance.pk %}
+                                                        <div class="form-group">
+                                                            <div class="custom-control custom-checkbox">
+                                                                {{ form.DELETE }}
+                                                                <label class="custom-control-label text-danger" for="{{ form.DELETE.id_for_label }}">
+                                                                    <i class="fas fa-trash"></i> Delete image
+                                    </label>
+                                </div>
+                            </div>
+                                        {% endif %}
+                                                </div>
+                                        </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="text-center mt-3">
+                                <button type="button" class="btn btn-outline-primary add-image-form">
+                                    <i class="fas fa-plus"></i> Add Another Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pricing Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-tags"></i> Pricing & Stock</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label required-field">Selling Price</label>
+                                    <div class="price-input-group">
+                                        {{ product_form.selling_price }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-tag"></i>
+                                        The retail price for customers
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label">Discount Percentage</label>
+                                    {{ product_form.discount_percentage }}
+                                    <small class="help-text">
+                                        <i class="fas fa-percentage"></i>
+                                        Enter a percentage (0-100) to apply discount
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="custom-label required-field">Stock</label>
+                                    {{ product_form.stock }}
+                                    <small class="help-text">
+                                        <i class="fas fa-boxes"></i>
+                                        Available quantity in inventory
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="custom-label">Show Price</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.show_price }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-eye"></i>
+                                        Toggle to show/hide price on product page
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="custom-label">Pre-order</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.preorder }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-clock"></i>
+                                        Enable if product is available for pre-order
+                                    </small>
+                    </div>
+                </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Status Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-toggle-on"></i> Product Status</h3>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="custom-label">Available</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.available }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-check-circle"></i>
+                                        Make product available for purchase
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="custom-label">Featured</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.featured }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-star"></i>
+                                        Show on featured products section
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="custom-label">Best Selling</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.best_selling }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-fire"></i>
+                                        Mark as a best-selling product
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="custom-label">Trending</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.trending }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-chart-line"></i>
+                                        Show in trending products section
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video URL Section -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-video"></i> Video</h3>
+                        <div class="form-group">
+                            <label class="custom-label">Video URL</label>
+                            {{ product_form.video_url }}
+                            <small class="help-text">
+                                <i class="fas fa-info-circle"></i>
+                                Enter YouTube or Facebook video URL
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-section">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{% url 'custom_product_list' %}" class="btn btn-cancel">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-submit">
+                                    <i class="fas fa-save"></i> Save Product
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2 with custom styling
+        $('select').select2({
+            theme: 'bootstrap4',
+            width: '100%',
+            minimumResultsForSearch: 6,
+            dropdownParent: $('.product-admin')
+        });
+
+        // Initialize Summernote for rich text editor
+        $('#id_description').summernote({
+            height: 300,
+            toolbar: [
+                ['style', ['style']],
+                ['font', ['bold', 'underline', 'clear']],
+                ['color', ['color']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['table', ['table']],
+                ['insert', ['link', 'picture']],
+                ['view', ['fullscreen', 'codeview', 'help']]
+            ]
+        });
+
+        // Function to generate SEO-friendly alt text
+        function generateAltText() {
+            var productName = $('#id_name').val() || '';
+            var categorySelect = $('#id_category');
+            var subcategorySelect = $('#id_subcategory');
+            
+            var category = categorySelect.find('option:selected').text() || '';
+            var subcategory = subcategorySelect.find('option:selected').text() || '';
+            
+            // Clean up the text
+            productName = productName.trim();
+            category = category.trim();
+            subcategory = subcategory.trim();
+            
+            // Generate the alt text
+            var altText = "SANJILA's";
+            if (productName) altText += " " + productName;
+            if (category) altText += " " + category;
+            if (subcategory) altText += " " + subcategory;
+            
+            return altText;
+        }
+
+        // Update alt text when product details change
+        $('#id_name, #id_category, #id_subcategory').on('change', function() {
+            var altText = generateAltText();
+            $('.image-form input[type="text"]').each(function() {
+                if (!$(this).val()) {  // Only update empty alt text fields
+                    $(this).val(altText);
+                }
+            });
+        });
+
+        // Handle image formset
+        function updateFormIndexes() {
+            var totalForms = $('#id_images-TOTAL_FORMS');
+            var formCount = $('.image-form-wrapper').length;
+            totalForms.val(formCount);
+            
+            $('.image-form-wrapper').each(function(index) {
+                $(this).find('input, select').each(function() {
+                    var name = $(this).attr('name');
+                    if (name) {
+                        name = name.replace(/-\d+-/, '-' + index + '-');
+                        $(this).attr('name', name);
+                    }
+                    var id = $(this).attr('id');
+                    if (id) {
+                        id = id.replace(/-\d+-/, '-' + index + '-');
+                        $(this).attr('id', id);
+                        $(this).siblings('label').attr('for', id);
+                    }
+                });
+            });
+        }
+
+        // Handle image preview for both new and existing images
+        function updateImagePreview(input, form) {
+            var preview = form.find('.image-preview');
+            var previewImg = preview.find('img');
+            var label = input.siblings('.custom-file-label');
+            
+            if (input.files && input.files[0]) {
+                var file = input.files[0];
+                label.text(file.name);
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.attr('src', e.target.result);
+                    preview.removeClass('d-none');
+                    
+                    // Set alt text if empty
+                    var altTextInput = form.find('input[type="text"]');
+                    if (!altTextInput.val()) {
+                        altTextInput.val(generateAltText());
+                    }
+                };
+                reader.readAsDataURL(file);
+            } else if (input.value) {
+                // For existing images
+                preview.removeClass('d-none');
+                label.text(input.value.split('\\').pop());
+            } else {
+                preview.addClass('d-none');
+                label.text('Choose file...');
+                previewImg.attr('src', '');
+            }
+        }
+
+        // Add new image form with updated structure
+        $('.add-image-form').click(function(e) {
+            e.preventDefault();
+            var formCount = $('.image-form-wrapper').length;
+            var template = $('.image-form-wrapper:first').clone(true);
+            
+            // Clear the values
+            template.find('input[type="file"]').val('');
+            template.find('input[type="text"]').val(generateAltText());
+            template.find('.image-preview').addClass('d-none');
+            template.find('.image-preview img').attr('src', '');
+            template.find('.custom-file-label').text('Choose file...');
+            
+            // Add to container
+            $('#image-forms-container').append(template);
+            updateFormIndexes();
+        });
+
+        // Initialize previews for existing images
+        $('.image-form input[type="file"]').each(function() {
+            var form = $(this).closest('.image-form');
+            updateImagePreview(this, form);
+        });
+
+        // Handle image file input change
+        $(document).on('change', 'input[type="file"]', function() {
+            var form = $(this).closest('.image-form');
+            updateImagePreview(this, form);
+        });
+
+        // Remove image form
+        $(document).on('click', '.delete-image-form', function(e) {
+            e.preventDefault();
+            if ($('.image-form-wrapper').length > 1) {
+                $(this).closest('.image-form-wrapper').remove();
+                updateFormIndexes();
+            }
+        });
+
+        // Initialize formset and set initial alt texts
+        updateFormIndexes();
+        $('.image-form input[type="text"]').each(function() {
+            if (!$(this).val()) {
+                $(this).val(generateAltText());
+            }
+        });
+    });
+</script>
 {% endblock %}

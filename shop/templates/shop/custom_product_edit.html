@@ -1,0 +1,624 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit {{ product.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --primary-hover: #4338ca;
+        --secondary-color: #1e40af;
+        --success-color: #059669;
+        --danger-color: #dc2626;
+        --warning-color: #d97706;
+        --info-color: #0284c7;
+        --light-bg: #f8fafc;
+        --border-color: #e2e8f0;
+        --text-color: #1e293b;
+        --text-muted: #64748b;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .admin-header {
+        background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 2rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .admin-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffffff' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
+        opacity: 0.5;
+    }
+
+    .form-section {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: var(--card-shadow);
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .form-section h2 {
+        color: var(--text-color);
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: var(--text-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%);
+        color: white;
+        padding: 0.875rem 2rem;
+        border: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(79, 70, 229, 0.3);
+        color: white;
+    }
+
+    .btn-cancel {
+        background: var(--light-bg);
+        color: var(--text-color);
+        padding: 0.875rem 2rem;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .btn-cancel:hover {
+        background: var(--border-color);
+        color: var(--text-color);
+    }
+
+    .image-preview {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .image-card {
+        background: var(--light-bg);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        position: relative;
+    }
+
+    .image-card img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .image-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .btn-image-action {
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-delete-image {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-delete-image:hover {
+        background-color: #c82333;
+    }
+
+    .alert {
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .alert i {
+        font-size: 1.25rem;
+    }
+
+    .alert-success {
+        background: #ecfdf5;
+        color: var(--success-color);
+        border: 1px solid #d1fae5;
+    }
+
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        border-radius: 0.25rem;
+        border: 2px solid var(--border-color);
+        transition: all 0.2s ease;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .form-check-label {
+        font-weight: 500;
+        color: var(--text-color);
+    }
+
+    .select2-container--default .select2-selection--single {
+        height: 42px;
+        border: 1px solid var(--border-color);
+        border-radius: 0.5rem;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 42px;
+        padding-left: 1rem;
+    }
+
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 40px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container pt-5 mt-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'index' %}">Home</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'custom_product_list' %}">Products</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit {{ product.name }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="admin-header">
+                <h1 class="mb-0">Edit Product: {{ product.name }}</h1>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <!-- Basic Information -->
+                <div class="form-section">
+                    <h2>Basic Information</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.name.id_for_label }}">Product Name</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.name.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.sku.id_for_label }}">SKU</label>
+                                {{ form.sku }}
+                                {% if form.sku.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.sku.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.category.id_for_label }}">Category</label>
+                                {{ form.category }}
+                                {% if form.category.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.category.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.subcategory.id_for_label }}">Subcategory</label>
+                                {{ form.subcategory }}
+                                {% if form.subcategory.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.subcategory.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.heading.id_for_label }}">Heading</label>
+                        {{ form.heading }}
+                        {% if form.heading.errors %}
+                        <div class="alert alert-danger mt-2">
+                            {{ form.heading.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.short_description.id_for_label }}">Short Description</label>
+                        {{ form.short_description }}
+                        {% if form.short_description.errors %}
+                        <div class="alert alert-danger mt-2">
+                            {{ form.short_description.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.description.id_for_label }}">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                        <div class="alert alert-danger mt-2">
+                            {{ form.description.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Pricing and Stock -->
+                <div class="form-section">
+                    <h2>Pricing and Stock</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.buying_price.id_for_label }}">Buying Price</label>
+                                {{ form.buying_price }}
+                                {% if form.buying_price.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.buying_price.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.selling_price.id_for_label }}">Selling Price</label>
+                                {{ form.selling_price }}
+                                {% if form.selling_price.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.selling_price.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.discount_percentage.id_for_label }}">Discount Percentage</label>
+                                {{ form.discount_percentage }}
+                                {% if form.discount_percentage.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.discount_percentage.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="{{ form.stock.id_for_label }}">Stock</label>
+                                {{ form.stock }}
+                                {% if form.stock.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.stock.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.show_price }}
+                                <label class="form-check-label" for="{{ form.show_price.id_for_label }}">
+                                    Show Price
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.available }}
+                                <label class="form-check-label" for="{{ form.available.id_for_label }}">
+                                    Available
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Images -->
+                <div class="form-section">
+                    <h2>Product Images</h2>
+                    {{ image_formset.management_form }}
+                    <div class="row" id="image-forms">
+                        {% for image_form in image_formset %}
+                        <div class="col-md-4 mb-4 image-form">
+                            <div class="image-card">
+                                {% if image_form.instance.image %}
+                                <img src="{{ image_form.instance.image.url }}" alt="{{ image_form.instance.alt_text }}" class="image-preview">
+                                {% else %}
+                                <div class="image-preview bg-light d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-image fa-3x text-muted"></i>
+                                </div>
+                                {% endif %}
+                                {{ image_form.id }}
+                                <div class="form-group">
+                                    <label class="form-label">Image</label>
+                                    {{ image_form.image }}
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Alt Text</label>
+                                    {{ image_form.alt_text }}
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Order</label>
+                                    {{ image_form.order }}
+                                </div>
+                                {% if image_form.instance.id %}
+                                <div class="image-actions">
+                                    <button type="button" class="btn-image-action btn-delete-image" data-image-id="{{ image_form.instance.id }}">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <button type="button" class="btn btn-add" id="add-image-form">
+                        <i class="fas fa-plus"></i> Add Another Image
+                    </button>
+                </div>
+
+                <!-- Product Status -->
+                <div class="form-section">
+                    <h2>Product Status</h2>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.featured }}
+                                <label class="form-check-label" for="{{ form.featured.id_for_label }}">
+                                    Featured
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.best_selling }}
+                                <label class="form-check-label" for="{{ form.best_selling.id_for_label }}">
+                                    Best Selling
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.trending }}
+                                <label class="form-check-label" for="{{ form.trending.id_for_label }}">
+                                    Trending
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                {{ form.new_arrival }}
+                                <label class="form-check-label" for="{{ form.new_arrival.id_for_label }}">
+                                    New Arrival
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video URL -->
+                <div class="form-section">
+                    <h2>Video URL</h2>
+                    <div class="form-group">
+                        <label class="form-label" for="{{ form.video_url.id_for_label }}">Video URL (YouTube or Facebook)</label>
+                        {{ form.video_url }}
+                        {% if form.video_url.errors %}
+                        <div class="alert alert-danger mt-2">
+                            {{ form.video_url.errors }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-section">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <a href="{% url 'custom_product_list' %}" class="btn btn-cancel">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save"></i> Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Initialize Select2 for dropdowns
+        $('.select2').select2({
+            theme: 'bootstrap-5',
+            width: '100%'
+        });
+
+        // Handle image formset
+        function updateFormIndexes() {
+            $('.image-form').each(function(index) {
+                $(this).find('input, select').each(function() {
+                    var name = $(this).attr('name');
+                    if (name) {
+                        name = name.replace(/-\d+-/, '-' + index + '-');
+                        $(this).attr('name', name);
+                        // Update order value for each form
+                        if (name.endsWith('-order')) {
+                            $(this).val(index);
+                        }
+                    }
+                    var id = $(this).attr('id');
+                    if (id) {
+                        id = id.replace(/-\d+-/, '-' + index + '-');
+                        $(this).attr('id', id);
+                        $(this).siblings('label').attr('for', id);
+                    }
+                });
+            });
+        }
+
+        // Add new image form
+        $('#add-image-form').click(function() {
+            var totalForms = $('#id_images-TOTAL_FORMS');
+            var formCount = parseInt(totalForms.val());
+            var template = $('.image-form:first').clone();
+            
+            // Clear values
+            template.find('input[type="file"]').val('');
+            template.find('input[type="text"]').val('');
+            template.find('input[name$="-order"]').val(formCount);  // Set the order value
+            template.find('img').remove();
+            template.find('.image-preview').html('<i class="fas fa-image fa-3x text-muted"></i>');
+            template.find('.image-actions').remove();
+            
+            // Update form index
+            template.find('input, select').each(function() {
+                var name = $(this).attr('name');
+                if (name) {
+                    name = name.replace(/-\d+-/, '-' + formCount + '-');
+                    $(this).attr('name', name);
+                    $(this).attr('id', 'id_' + name);
+                }
+            });
+            
+            $('#image-forms').append(template);
+            totalForms.val(formCount + 1);
+        });
+
+        // Delete image
+        $(document).on('click', '.btn-delete-image', function() {
+            var imageId = $(this).data('image-id');
+            var form = $(this).closest('.image-form');
+            
+            if (imageId) {
+                // Existing image - mark for deletion
+                var deleteInput = form.find('input[name$="-DELETE"]');
+                if (deleteInput.length) {
+                    deleteInput.val('on');
+                    form.hide();
+                }
+            } else {
+                // New form - remove it
+                form.remove();
+            }
+            updateFormIndexes();  // Update order values after deletion
+        });
+
+        // Preview image before upload
+        $(document).on('change', 'input[type="file"]', function() {
+            var input = this;
+            var preview = $(this).closest('.image-card').find('.image-preview');
+            
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.html('<img src="' + e.target.result + '" alt="Preview" class="img-fluid">');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        });
+    });
+</script>
+{% endblock %} 

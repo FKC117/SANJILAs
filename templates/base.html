@@ -348,9 +348,27 @@
                             </form>
                         </div>
                     </li>
+                    {% if user.is_staff %}
                     <li class="nav-item">
-                        <a class="nav-link" href="#"><i class="fas fa-user"></i></a>
+                        <a class="nav-link" href="{% url 'custom_product_list' %}">
+                            <i class="fas fa-cog"></i> Manage Products
+                        </a>
                     </li>
+                    <li class="nav-item">
+                        <form method="post" action="{% url 'staff_logout' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="nav-link btn btn-link">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </button>
+                        </form>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'staff_login' %}">
+                            <i class="fas fa-sign-in-alt"></i> Staff Login
+                        </a>
+                    </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link position-relative" href="{% url 'cart_view' %}">
                             <i class="fas fa-shopping-bag"></i>

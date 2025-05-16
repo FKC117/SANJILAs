@@ -1,11 +1,19 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
-from django.urls import reverse
-from .models import *
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
-from .forms import ProductCreateForm, ProductEditForm, ProductImageFormSet
+from django.urls import reverse
+from django.contrib import messages
+from django.db import transaction
+from django.utils.text import slugify
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.http import JsonResponse, HttpResponseNotAllowed
+from django.views.decorators.http import require_POST
+from django.db.models.signals import pre_save, post_save, pre_delete, post_delete
+from django.dispatch import receiver
+import json
+
+from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory
+from .forms import ProductCreateForm, ProductEditForm, ProductImageFormSet
 
 # Create a context processor to make categories available in all templates
 def categories_processor(request):
@@ -21,14 +29,47 @@ def categories_processor(request):
 def custom_product_add_view(request):
     if request.method == 'POST':
         product_form = ProductCreateForm(request.POST, request.FILES)
+        image_formset = ProductImageFormSet(request.POST, request.FILES)
+        
         if product_form.is_valid():
-            product = product_form.save()
-            return redirect('custom_product_edit', product.slug)
+            try:
+                with transaction.atomic():
+                    # Save the product first
+                    product = product_form.save(commit=False)
+                    # Generate slug and SKU
+                    product.slug = slugify(product.name)
+                    product.sku = product.generate_sku()
+                    product.save()
+                    
+                    # Now save the image formset
+                    image_formset = ProductImageFormSet(request.POST, request.FILES, instance=product)
+                    if image_formset.is_valid():
+                        # Set order for each image before saving
+                        for i, form in enumerate(image_formset.forms):
+                            if form.cleaned_data and not form.cleaned_data.get('DELETE'):
+                                form.instance.order = i
+                        image_formset.save()
+                        messages.success(request, f'Product "{product.name}" was successfully created.')
+                        return redirect('custom_product_list')
+                    else:
+                        # If image formset is invalid, delete the product and raise error
+                        product.delete()
+                        for error in image_formset.errors:
+                            messages.error(request, f'Image error: {error}')
+            except Exception as e:
+                messages.error(request, f'Error creating product: {str(e)}')
+        else:
+            # Display form errors
+            for field, errors in product_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
     else:
         product_form = ProductCreateForm()
+        image_formset = ProductImageFormSet()
 
     context = {
         'product_form': product_form,
+        'image_formset': image_formset,
         'title': 'Add New Product',
     }
     return render(request, 'shop/custom_product_add.html', context)
@@ -42,7 +83,12 @@ def custom_product_edit_view(request, slug):
 
         if product_form.is_valid() and image_formset.is_valid():
             product = product_form.save()
+            # Set order for each image before saving
+            for i, form in enumerate(image_formset.forms):
+                if form.cleaned_data and not form.cleaned_data.get('DELETE'):
+                    form.instance.order = i
             image_formset.save()
+            messages.success(request, f'Product "{product.name}" was successfully updated.')
             return redirect('custom_product_edit', product.slug)
     else:
         product_form = ProductEditForm(instance=product)
@@ -55,6 +101,20 @@ def custom_product_edit_view(request, slug):
         'title': f'Edit Product: {product.name}',
     }
     return render(request, 'shop/custom_product_edit.html', context)
+
+@staff_member_required
+def custom_product_list_view(request):
+    products = Product.objects.all().order_by('-created_at')
+    context = {
+        'products': products,
+        'title': 'Manage Products',
+    }
+    return render(request, 'shop/custom_product_list.html', context)
+
+@staff_member_required
+def set_primary_image(request):
+    # This feature is not implemented because the model does not support a primary image
+    return JsonResponse({'status': 'error', 'message': 'Primary image feature not implemented.'}, status=400)
 
 def index(request):
     # Get featured products for each section
@@ -187,3 +247,35 @@ def search_results(request):
         'total_results': products_list.count(),
     }
     return render(request, 'shop/search_results.html', context)
+
+@require_POST
+def delete_product_image(request):
+    image_id = request.POST.get('image_id')
+    if image_id:
+        try:
+            image = ProductImage.objects.get(id=image_id)
+            image.delete()
+            return JsonResponse({'status': 'success'})
+        except ProductImage.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Image not found'}, status=404)
+    return JsonResponse({'status': 'error', 'message': 'No image ID provided'}, status=400)
+
+@require_POST
+def update_image_order(request):
+    try:
+        data = json.loads(request.body)
+        for item in data:
+            image = ProductImage.objects.get(id=item['id'])
+            image.order = item['order']
+            image.save()
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+def get_subcategories(request):
+    category_id = request.GET.get('category_id')
+    if category_id:
+        subcategories = ProductSubCategory.objects.filter(category_id=category_id)
+        data = [{'id': sub.id, 'name': sub.name} for sub in subcategories]
+        return JsonResponse(data, safe=False)
+    return JsonResponse([], safe=False)

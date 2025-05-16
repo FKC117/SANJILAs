@@ -1,0 +1,1075 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% load form_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+<style>
+    .product-admin {
+        --pa-primary: #4f46e5;
+        --pa-primary-hover: #4338ca;
+        --pa-secondary: #1e40af;
+        --pa-success: #059669;
+        --pa-danger: #dc2626;
+        --pa-warning: #d97706;
+        --pa-info: #0284c7;
+        --pa-light-bg: #f8fafc;
+        --pa-border: #e2e8f0;
+        --pa-text: #1e293b;
+        --pa-text-muted: #64748b;
+        --pa-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --pa-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        min-height: 100vh;
+        background-color: var(--pa-light-bg);
+        padding: 1rem 0;
+    }
+
+    .product-admin .container-fluid {
+        position: relative;
+        z-index: 1;
+        padding: 0 1rem;
+    }
+
+    .product-admin .admin-header {
+        background: linear-gradient(135deg, var(--pa-primary) 0%, var(--pa-primary-hover) 100%);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: var(--pa-shadow);
+        margin-bottom: 1rem;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .product-admin .form-section {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: var(--pa-shadow);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        border: 1px solid var(--pa-border);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        animation: slideInRight 0.5s ease;
+    }
+
+    .product-admin .form-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .product-admin .form-section h3 {
+        color: var(--pa-text);
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid var(--pa-border);
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .product-admin .form-section h3 i {
+        color: var(--pa-primary);
+        background: var(--pa-light-bg);
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        font-size: 1.25rem;
+    }
+
+    .product-admin .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .product-admin .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .product-admin .form-group label.custom-label {
+        font-weight: 500;
+        color: var(--pa-text);
+        margin-bottom: 0.5rem;
+        display: block;
+        transition: color 0.2s ease;
+    }
+
+    .product-admin .form-group:hover label.custom-label {
+        color: var(--pa-primary);
+    }
+
+    .product-admin .form-group .required-field::after {
+        content: " *";
+        color: var(--pa-danger);
+    }
+
+    .product-admin .form-control,
+    .product-admin .select2-container--bootstrap4 .select2-selection {
+        height: 42px;
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        line-height: 1.5;
+        border: 2px solid var(--pa-border);
+        border-radius: 0.5rem;
+        transition: all 0.2s ease;
+        background-color: white;
+        width: 100%;
+    }
+
+    .product-admin .form-control:focus,
+    .product-admin .select2-container--bootstrap4.select2-container--focus .select2-selection {
+        border-color: var(--pa-primary);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+        outline: none;
+    }
+
+    .product-admin .help-text {
+        color: var(--pa-text-muted);
+        font-size: 0.875rem;
+        margin-top: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .product-admin .help-text i {
+        color: var(--pa-info);
+    }
+
+    .product-admin .btn-submit {
+        background: linear-gradient(135deg, var(--pa-primary) 0%, var(--pa-primary-hover) 100%);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: none;
+        font-weight: 500;
+        box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .btn-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 8px rgba(79, 70, 229, 0.3);
+    }
+
+    .product-admin .btn-back {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .btn-back:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+    }
+
+    .product-admin .btn-cancel {
+        background: var(--pa-light-bg);
+        color: var(--pa-text);
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--pa-border);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .btn-cancel:hover {
+        background: var(--pa-border);
+        color: var(--pa-text);
+    }
+
+    .product-admin .custom-control.custom-switch {
+        padding-left: 3rem;
+    }
+
+    .product-admin .custom-control-input:checked ~ .custom-control-label::before {
+        background-color: var(--pa-primary);
+        border-color: var(--pa-primary);
+    }
+
+    .product-admin .custom-control-label::before {
+        width: 2.5rem;
+        height: 1.25rem;
+        border-radius: 1rem;
+        background-color: var(--pa-border);
+        border: none;
+    }
+
+    .product-admin .custom-control-label::after {
+        width: calc(1.25rem - 4px);
+        height: calc(1.25rem - 4px);
+        border-radius: 50%;
+        background-color: white;
+        top: 2px;
+        left: 2px;
+    }
+
+    .product-admin .custom-control-input:checked ~ .custom-control-label::after {
+        transform: translateX(1.25rem);
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    /* Select2 Customization */
+    .product-admin .select2-container {
+        width: 100% !important;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection {
+        border: 2px solid var(--pa-border);
+        border-radius: 0.5rem;
+        min-height: 42px;
+        background-color: white;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection:hover {
+        border-color: var(--pa-primary);
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection--single {
+        padding: 0.5rem 1rem;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+        color: var(--pa-text);
+        font-size: 1rem;
+        line-height: 1.5;
+        padding: 0;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
+        height: 40px;
+        right: 10px;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-dropdown {
+        border: 2px solid var(--pa-primary);
+        border-radius: 0.5rem;
+        box-shadow: var(--pa-shadow);
+        background-color: white;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-results__option {
+        padding: 0.75rem 1rem;
+        color: var(--pa-text);
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-results__option--highlighted[aria-selected] {
+        background-color: var(--pa-primary);
+        color: white;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-search--dropdown .select2-search__field {
+        border: 2px solid var(--pa-border);
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+    }
+
+    .product-admin .select2-container--bootstrap4 .select2-search--dropdown .select2-search__field:focus {
+        border-color: var(--pa-primary);
+        outline: none;
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    /* Summernote Customization */
+    .product-admin .note-editor {
+        border: 2px solid var(--pa-border);
+        border-radius: 0.5rem;
+    }
+
+    .product-admin .note-editor.note-frame:focus {
+        border-color: var(--pa-primary);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .product-admin .note-toolbar {
+        background-color: var(--pa-light-bg);
+        border-bottom: 1px solid var(--pa-border);
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+
+    .product-admin .note-btn {
+        border: 1px solid var(--pa-border);
+        background-color: white;
+        color: var(--pa-text);
+    }
+
+    .product-admin .note-btn:hover {
+        background-color: var(--pa-light-bg);
+        border-color: var(--pa-primary);
+        color: var(--pa-primary);
+    }
+
+    .product-admin .note-editing-area {
+        background-color: white;
+    }
+
+    .product-admin .note-editable {
+        color: var(--pa-text);
+        padding: 1rem;
+    }
+
+    /* Add these styles to your existing CSS */
+    .product-admin .video-urls-container {
+        background: var(--pa-light-bg);
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    .product-admin .video-url-input {
+        position: relative;
+    }
+
+    .product-admin .video-url-input .form-control {
+        padding-right: 2.5rem;
+    }
+
+    .product-admin .product-images-container {
+        background: var(--pa-light-bg);
+        border-radius: 0.5rem;
+        padding: 1rem;
+    }
+
+    .product-admin #image-preview-container {
+        margin: 0 -0.5rem;
+    }
+
+    .product-admin .image-preview-item {
+        padding: 0.5rem;
+        position: relative;
+    }
+
+    .product-admin .image-preview-wrapper {
+        position: relative;
+        padding-top: 100%;
+        background: white;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: var(--pa-shadow);
+    }
+
+    .product-admin .image-preview {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .product-admin .image-preview-actions {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        display: flex;
+        gap: 0.5rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    .product-admin .image-preview-wrapper:hover .image-preview-actions {
+        opacity: 1;
+    }
+
+    .product-admin .image-preview-btn {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background: white;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: var(--pa-shadow);
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .image-preview-btn:hover {
+        transform: scale(1.1);
+    }
+
+    .product-admin .image-preview-btn.btn-primary {
+        background: var(--pa-primary);
+        color: white;
+    }
+
+    .product-admin .image-preview-btn.btn-danger {
+        background: var(--pa-danger);
+        color: white;
+    }
+
+    .product-admin .image-preview-btn.btn-secondary {
+        background: var(--pa-secondary);
+        color: white;
+    }
+
+    .product-admin .custom-file {
+        position: relative;
+        display: inline-block;
+    }
+
+    .product-admin .custom-file-input {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+    }
+
+    .product-admin .custom-file-label {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        background: white;
+        border: 2px solid var(--pa-border);
+        color: var(--pa-text);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .product-admin .custom-file-input:focus + .custom-file-label {
+        border-color: var(--pa-primary);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    /* Improve mobile responsiveness */
+    @media (max-width: 768px) {
+        .product-admin .admin-header {
+            padding: 1rem;
+        }
+
+        .product-admin .admin-header h1 {
+            font-size: 1.5rem;
+        }
+
+        .product-admin .form-section {
+            padding: 1rem;
+        }
+
+        .product-admin .form-section h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .product-admin .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .product-admin .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .product-admin .custom-control.custom-switch {
+            padding-left: 2.5rem;
+        }
+
+        .product-admin .custom-control-label::before {
+            width: 2rem;
+            height: 1rem;
+        }
+
+        .product-admin .custom-control-label::after {
+            width: calc(1rem - 4px);
+            height: calc(1rem - 4px);
+        }
+
+        .product-admin .custom-control-input:checked ~ .custom-control-label::after {
+            transform: translateX(1rem);
+        }
+
+        /* Improve image upload on mobile */
+        .product-admin .image-form-wrapper {
+            margin-bottom: 1rem;
+        }
+
+        .product-admin .image-preview {
+            max-height: 200px;
+        }
+
+        /* Improve form actions on mobile */
+        .product-admin .form-actions {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .product-admin .form-actions .btn {
+            width: 100%;
+        }
+
+        /* Improve Select2 on mobile */
+        .product-admin .select2-container {
+            width: 100% !important;
+        }
+
+        .product-admin .select2-container--bootstrap4 .select2-selection {
+            min-height: 38px;
+        }
+
+        /* Improve Summernote on mobile */
+        .product-admin .note-editor {
+            min-height: 200px;
+        }
+
+        .product-admin .note-toolbar {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .product-admin .note-btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="product-admin">
+    <div class="container-fluid py-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <!-- Page Header -->
+                <div class="admin-header animate__animated animate__fadeIn">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="mb-2">{{ title }}</h1>
+                            <p class="mb-0">Create a new product for your store</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'custom_product_list' %}" class="btn btn-back">
+                                <i class="fas fa-arrow-left"></i> Back to Products
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                {% if messages %}
+                <div class="messages mb-4">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} animate__animated animate__fadeInDown">
+                        {% if message.tags == 'success' %}
+                        <i class="fas fa-check-circle"></i>
+                        {% elif message.tags == 'error' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                        {% elif message.tags == 'warning' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {% else %}
+                        <i class="fas fa-info-circle"></i>
+                        {% endif %}
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information Section -->
+                    <div class="form-section" role="region" aria-labelledby="basic-info-heading">
+                        <h3 id="basic-info-heading"><i class="fas fa-info-circle" aria-hidden="true"></i> Basic Information</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label required-field" for="{{ product_form.name.id_for_label }}">Product Name</label>
+                                    {{ product_form.name|add_attrs:"aria-required:true" }}
+                                    <small class="help-text">
+                                        <i class="fas fa-info-circle" aria-hidden="true"></i>
+                                        Enter a clear and descriptive name for your product
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label required-field" for="{{ product_form.category.id_for_label }}">Category</label>
+                                    {{ product_form.category|add_attrs:"aria-required:true" }}
+                                    <small class="help-text">
+                                        <i class="fas fa-tag" aria-hidden="true"></i>
+                                        Select the main category for your product
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label required-field">Subcategory</label>
+                                    {{ product_form.subcategory }}
+                                    <small class="help-text">
+                                        <i class="fas fa-tags"></i>
+                                        Choose a specific subcategory
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label">Heading</label>
+                                    {{ product_form.heading }}
+                                    <small class="help-text">
+                                        <i class="fas fa-heading"></i>
+                                        A catchy headline for your product (optional)
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="custom-label">Short Description</label>
+                            {{ product_form.short_description }}
+                            <small class="help-text">
+                                <i class="fas fa-align-left"></i>
+                                A brief summary of your product (max 500 characters)
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label class="custom-label">Full Description</label>
+                            {{ product_form.description }}
+                            <small class="help-text">
+                                <i class="fas fa-align-justify"></i>
+                                Detailed description with formatting options
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Images Section -->
+                    <div class="form-section" role="region" aria-labelledby="images-heading">
+                        <h3 id="images-heading"><i class="fas fa-images" aria-hidden="true"></i> Product Images</h3>
+                        <div class="image-formset">
+                            {{ image_formset.management_form }}
+                            <div class="row" id="image-forms-container" role="list">
+                                {% for form in image_formset %}
+                                    <div class="col-md-4 mb-3 image-form-wrapper" role="listitem">
+                                        <div class="image-form card">
+                                            <div class="card-body">
+                                                {{ form.id }}
+                                                <div class="form-group">
+                                                    <label class="custom-label" for="{{ form.image.id_for_label }}">Image</label>
+                                                    <div class="custom-file">
+                                                        {{ form.image|add_attrs:"aria-label:Choose product image" }}
+                                                        <label class="custom-file-label" for="{{ form.image.id_for_label }}">
+                                                            Choose file...
+                                                        </label>
+                                                    </div>
+                                                    {% if form.image.errors %}
+                                                        <div class="invalid-feedback d-block" role="alert">
+                                                            {{ form.image.errors }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="form-group">
+                                                    <label class="custom-label" for="{{ form.alt_text.id_for_label }}">Alt Text</label>
+                                                    {{ form.alt_text|add_attrs:"aria-label:Image description for accessibility" }}
+                                                    <small class="help-text">
+                                                        <i class="fas fa-info-circle" aria-hidden="true"></i>
+                                                        Describe the image for accessibility
+                                                    </small>
+                                                </div>
+                                                {% if form.instance.pk %}
+                                                    <div class="form-group">
+                                                        <div class="custom-control custom-checkbox">
+                                                            {{ form.DELETE }}
+                                                            <label class="custom-control-label text-danger" for="{{ form.DELETE.id_for_label }}">
+                                                                <i class="fas fa-trash"></i> Delete image
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                                <div class="image-preview mt-2" style="display: none;">
+                                                    <img src="" class="img-thumbnail" style="max-height: 150px; width: 100%; object-fit: cover;">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            <div class="text-center mt-3">
+                                <button type="button" class="btn btn-outline-primary add-image-form">
+                                    <i class="fas fa-plus"></i> Add Another Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pricing Section -->
+                    <div class="form-section" role="region" aria-labelledby="pricing-heading">
+                        <h3 id="pricing-heading"><i class="fas fa-tags" aria-hidden="true"></i> Pricing & Stock</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label required-field">Selling Price</label>
+                                    <div class="price-input-group">
+                                        {{ product_form.selling_price|add_attrs:"aria-required:true" }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-tag" aria-hidden="true"></i>
+                                        The retail price for customers
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="custom-label">Discount Percentage</label>
+                                    {{ product_form.discount_percentage|add_attrs:"aria-label:Enter discount percentage" }}
+                                    <small class="help-text">
+                                        <i class="fas fa-percentage" aria-hidden="true"></i>
+                                        Enter a percentage (0-100) to apply discount
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="custom-label required-field">Stock</label>
+                                    {{ product_form.stock|add_attrs:"aria-required:true" }}
+                                    <small class="help-text">
+                                        <i class="fas fa-boxes" aria-hidden="true"></i>
+                                        Available quantity in inventory
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="custom-label">Show Price</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.show_price|add_attrs:"role:switch,aria-label:Toggle price visibility" }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-eye" aria-hidden="true"></i>
+                                        Toggle to show/hide price on product page
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label class="custom-label">Pre-order</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.preorder|add_attrs:"role:switch,aria-label:Toggle pre-order availability" }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-clock" aria-hidden="true"></i>
+                                        Enable if product is available for pre-order
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Status Section -->
+                    <div class="form-section" role="region" aria-labelledby="status-heading">
+                        <h3 id="status-heading"><i class="fas fa-toggle-on" aria-hidden="true"></i> Product Status</h3>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="custom-label" for="{{ product_form.available.id_for_label }}">Available</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.available|add_attrs:"role:switch,aria-label:Toggle product availability" }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-check-circle" aria-hidden="true"></i>
+                                        Make product available for purchase
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="custom-label">Featured</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.featured }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-star"></i>
+                                        Show on featured products section
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="custom-label">Best Selling</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.best_selling }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-fire"></i>
+                                        Mark as a best-selling product
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="custom-label">Trending</label>
+                                    <div class="custom-control custom-switch mt-2">
+                                        {{ product_form.trending }}
+                                    </div>
+                                    <small class="help-text">
+                                        <i class="fas fa-chart-line"></i>
+                                        Show in trending products section
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Video URL Section -->
+                    <div class="form-section" role="region" aria-labelledby="video-heading">
+                        <h3 id="video-heading"><i class="fas fa-video" aria-hidden="true"></i> Video</h3>
+                        <div class="form-group">
+                            <label class="custom-label" for="{{ product_form.video_url.id_for_label }}">Video URL</label>
+                            {{ product_form.video_url|add_attrs:"aria-label:Enter video URL" }}
+                            <small class="help-text">
+                                <i class="fas fa-info-circle" aria-hidden="true"></i>
+                                Enter YouTube or Facebook video URL
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-section" role="region" aria-label="Form actions">
+                        <div class="d-flex justify-content-between align-items-center form-actions">
+                            <div class="w-100 me-2">
+                                <a href="{% url 'custom_product_list' %}" class="btn btn-cancel w-100" role="button" aria-label="Cancel and return to product list">
+                                    <i class="fas fa-times" aria-hidden="true"></i> Cancel
+                                </a>
+                            </div>
+                            <div class="w-100">
+                                <button type="submit" class="btn btn-submit w-100" aria-label="Save product">
+                                    <i class="fas fa-save" aria-hidden="true"></i> Save Product
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-bs4.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Initialize Select2 with custom styling and accessibility improvements
+        $('select').select2({
+            theme: 'bootstrap4',
+            width: '100%',
+            minimumResultsForSearch: 6,
+            dropdownParent: $('.product-admin'),
+            containerCssClass: 'select2-container--accessible',
+            dropdownCssClass: 'select2-dropdown--accessible',
+            selectionCssClass: 'select2-selection--accessible'
+        }).on('select2:open', function() {
+            // Add aria-label to the search input
+            setTimeout(function() {
+                $('.select2-search__field').attr('aria-label', 'Search options');
+            }, 0);
+        });
+
+        // Add aria-labels to Select2 elements
+        $('.select2-selection').each(function() {
+            var label = $(this).prev('label').text();
+            $(this).attr('aria-label', label);
+        });
+
+        // Initialize Summernote for rich text editor
+        $('#id_description').summernote({
+            height: 300,
+            toolbar: [
+                ['style', ['style']],
+                ['font', ['bold', 'underline', 'clear']],
+                ['color', ['color']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['table', ['table']],
+                ['insert', ['link', 'picture']],
+                ['view', ['fullscreen', 'codeview', 'help']]
+            ]
+        });
+
+        // Function to generate SEO-friendly alt text
+        function generateAltText() {
+            var productName = $('#id_name').val() || '';
+            var categorySelect = $('#id_category');
+            var subcategorySelect = $('#id_subcategory');
+            var heading = $('#id_heading').val() || '';
+            
+            var category = categorySelect.find('option:selected').text() || '';
+            var subcategory = subcategorySelect.find('option:selected').text() || '';
+            
+            // Clean up the text
+            productName = productName.trim();
+            category = category.trim();
+            subcategory = subcategory.trim();
+            heading = heading.trim();
+            
+            // Generate the alt text with different formats based on available information
+            var altText = "SANJILA's";
+            
+            if (heading) {
+                altText += " " + heading;
+            } else if (productName) {
+                altText += " " + productName;
+            }
+            
+            if (category) {
+                altText += " " + category;
+            }
+            
+            if (subcategory && subcategory !== category) {
+                altText += " " + subcategory;
+            }
+            
+            // Add descriptive terms based on category
+            if (category.toLowerCase().includes('necklace')) {
+                altText += " jewelry piece";
+            } else if (category.toLowerCase().includes('earring')) {
+                altText += " ear accessory";
+            } else if (category.toLowerCase().includes('bangle')) {
+                altText += " wrist jewelry";
+            } else if (category.toLowerCase().includes('ring')) {
+                altText += " finger jewelry";
+            } else if (category.toLowerCase().includes('clutch')) {
+                altText += " handbag";
+            }
+            
+            return altText;
+        }
+
+        // Function to update alt text for a specific image form
+        function updateAltTextForForm(form) {
+            var altTextInput = form.find('input[type="text"]');
+            var currentAltText = altTextInput.val().trim();
+            
+            // Only update if the field is empty or contains the default text
+            if (!currentAltText || currentAltText === "SANJILA's" || currentAltText.startsWith("SANJILA's")) {
+                altTextInput.val(generateAltText());
+            }
+        }
+
+        // Update alt text when product details change
+        $('#id_name, #id_category, #id_subcategory, #id_heading').on('change', function() {
+            $('.image-form').each(function() {
+                updateAltTextForForm($(this));
+            });
+        });
+
+        // Handle image formset
+        function updateFormIndexes() {
+            var totalForms = $('#id_images-TOTAL_FORMS');
+            var formCount = $('.image-form-wrapper').length;
+            totalForms.val(formCount);
+            
+            $('.image-form-wrapper').each(function(index) {
+                $(this).find('input, select').each(function() {
+                    var name = $(this).attr('name');
+                    if (name) {
+                        name = name.replace(/-\d+-/, '-' + index + '-');
+                        $(this).attr('name', name);
+                        // Update order value for each form
+                        if (name.endsWith('-order')) {
+                            $(this).val(index);
+                        }
+                    }
+                    var id = $(this).attr('id');
+                    if (id) {
+                        id = id.replace(/-\d+-/, '-' + index + '-');
+                        $(this).attr('id', id);
+                        $(this).siblings('label').attr('for', id);
+                    }
+                });
+            });
+        }
+
+        // Add new image form
+        $('.add-image-form').click(function(e) {
+            e.preventDefault();
+            var formCount = $('.image-form-wrapper').length;
+            var template = $('.image-form-wrapper:first').clone(true);
+            
+            // Clear the values
+            template.find('input[type="file"]').val('');
+            template.find('.image-preview').hide();
+            template.find('.image-preview img').attr('src', '');
+            template.find('.custom-file-label').text('Choose file...');
+            template.find('input[name$="-order"]').val(formCount);  // Set the order value
+            
+            // Add to container
+            $('#image-forms-container').append(template);
+            updateFormIndexes();
+            
+            // Generate alt text for the new form
+            updateAltTextForForm(template.find('.image-form'));
+        });
+
+        // Handle image deletion
+        $(document).on('click', '.btn-delete-image', function() {
+            var form = $(this).closest('.image-form-wrapper');
+            form.remove();
+            updateFormIndexes();  // Update order values after deletion
+        });
+
+        // Handle image preview and alt text
+        $(document).on('change', 'input[type="file"]', function() {
+            var file = this.files[0];
+            var form = $(this).closest('.image-form');
+            var preview = form.find('.image-preview');
+            var previewImg = preview.find('img');
+            var label = $(this).siblings('.custom-file-label');
+            var altTextInput = form.find('input[type="text"]');
+            
+            if (file) {
+                label.text(file.name);
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.attr('src', e.target.result);
+                    preview.show();
+                    
+                    // Update alt text if needed
+                    updateAltTextForForm(form);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                label.text('Choose file...');
+                preview.hide();
+                previewImg.attr('src', '');
+            }
+        });
+
+        // Allow manual alt text editing with a note about auto-generation
+        $(document).on('focus', 'input[type="text"]', function() {
+            var helpText = $(this).siblings('.help-text');
+            if (!helpText.find('.alt-text-note').length) {
+                helpText.append('<span class="alt-text-note text-info"><i class="fas fa-info-circle"></i> You can edit this manually. It will be auto-generated if left empty.</span>');
+            }
+        });
+
+        // Initialize formset and set initial alt texts
+        updateFormIndexes();
+        $('.image-form').each(function() {
+            updateAltTextForForm($(this));
+        });
+    });
+</script>
+{% endblock %} 

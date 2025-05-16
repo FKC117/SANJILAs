@@ -77,7 +77,7 @@ class Product(models.Model):
     show_price = models.BooleanField(default=False)
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     discount_percentage = models.PositiveIntegerField(default=0)
-    buying_price = models.DecimalField(max_digits=10, decimal_places=2)
+    buying_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, blank=True)
     margin = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     stock = models.PositiveIntegerField(default=0)
     available = models.BooleanField(default=True)
@@ -123,6 +123,18 @@ class Product(models.Model):
         except Exception as e:
             print(f"Error calculating selling price for product {self.id}: {e}")
             return 0
+
+    @property
+    def get_discounted_price(self):
+        """Calculate the discounted price based on the selling price and discount percentage."""
+        try:
+            if self.discount_percentage and self.discount_percentage > 0:
+                discount_amount = (self.selling_price * self.discount_percentage) / 100
+                return self.selling_price - discount_amount
+            return self.selling_price
+        except Exception as e:
+            print(f"Error calculating discounted price for product {self.id}: {e}")
+            return self.selling_price
 
     def admin_photo(self):
         url = self.first_image
@@ -170,6 +182,10 @@ class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='product_images/')
     alt_text = models.CharField(max_length=255, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order', 'id']
 
     def __str__(self):
         return f"Image for {self.product.name}"

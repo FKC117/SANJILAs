@@ -3,8 +3,6 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from shop import views as shop_views
-from shop import views
-from shop.views import *
 from django.contrib.auth import views as auth_views
 from django.urls import reverse_lazy
 from django.contrib.auth.decorators import login_required
