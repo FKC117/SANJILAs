@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Shop All Products{% endblock %}
+
+{% block extra_css %}
+<style>
+    .shop-container {
+        padding: 2rem 0;
+    }
+    
+    .filter-section {
+        background-color: var(--grey-color);
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+    
+    .filter-section h5 {
+        color: var(--dark-color);
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    
+    .category-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .category-list li {
+        margin-bottom: 0.5rem;
+    }
+    
+    .category-list a {
+        color: var(--dark-color);
+        text-decoration: none;
+        display: block;
+        padding: 0.5rem;
+        border-radius: 4px;
+        transition: all 0.3s ease;
+    }
+    
+    .category-list a:hover,
+    .category-list a.active {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    .subcategory-list {
+        list-style: none;
+        padding-left: 1rem;
+        margin-top: 0.5rem;
+    }
+    
+    .subcategory-list a {
+        font-size: 0.9rem;
+        color: #666;
+    }
+    
+    .sort-dropdown {
+        width: 200px;
+    }
+    
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 2rem;
+    }
+    
+    .product-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .product-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .product-image {
+        position: relative;
+        padding-top: 100%;
+        overflow: hidden;
+    }
+    
+    .product-image img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .product-info {
+        padding: 1rem;
+    }
+    
+    .product-title {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--dark-color);
+    }
+    
+    .product-price {
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .product-price .original-price {
+        color: #999;
+        text-decoration: line-through;
+        font-size: 0.9rem;
+        margin-right: 0.5rem;
+    }
+    
+    .product-badges {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .badge-new {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    
+    .badge-sale {
+        background-color: #ff6b6b;
+        color: white;
+    }
+    
+    .badge-bestseller {
+        background-color: #51cf66;
+        color: white;
+    }
+    
+    @media (max-width: 768px) {
+        .product-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .filter-section {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="shop-container">
+    <div class="container">
+        <div class="row">
+            <!-- Filters Sidebar -->
+            <div class="col-lg-3">
+                <div class="filter-section">
+                    <h5>Categories</h5>
+                    <ul class="category-list">
+                        <li>
+                            <a href="{% url 'shop' %}" class="{% if not active_category %}active{% endif %}">
+                                All Products
+                            </a>
+                        </li>
+                        {% for category in categories %}
+                        <li>
+                            <a href="{% url 'shop' %}?category={{ category.slug }}" 
+                               class="{% if active_category == category.slug %}active{% endif %}">
+                                {{ category.name }}
+                            </a>
+                            {% if category.sub_categories.all %}
+                            <ul class="subcategory-list">
+                                {% for subcategory in category.sub_categories.all %}
+                                <li>
+                                    <a href="{% url 'shop' %}?category={{ category.slug }}&subcategory={{ subcategory.slug }}"
+                                       class="{% if active_subcategory == subcategory.slug %}active{% endif %}">
+                                        {{ subcategory.name }}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Products Grid -->
+            <div class="col-lg-9">
+                <!-- Sort Options -->
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0">All Products</h4>
+                    <select class="form-select sort-dropdown" onchange="window.location.href=this.value">
+                        <option value="{% url 'shop' %}?sort=newest{% if active_category %}&category={{ active_category }}{% endif %}{% if active_subcategory %}&subcategory={{ active_subcategory }}{% endif %}"
+                                {% if active_sort == 'newest' %}selected{% endif %}>
+                            Newest First
+                        </option>
+                        <option value="{% url 'shop' %}?sort=price-low{% if active_category %}&category={{ active_category }}{% endif %}{% if active_subcategory %}&subcategory={{ active_subcategory }}{% endif %}"
+                                {% if active_sort == 'price-low' %}selected{% endif %}>
+                            Price: Low to High
+                        </option>
+                        <option value="{% url 'shop' %}?sort=price-high{% if active_category %}&category={{ active_category }}{% endif %}{% if active_subcategory %}&subcategory={{ active_subcategory }}{% endif %}"
+                                {% if active_sort == 'price-high' %}selected{% endif %}>
+                            Price: High to Low
+                        </option>
+                        <option value="{% url 'shop' %}?sort=best-selling{% if active_category %}&category={{ active_category }}{% endif %}{% if active_subcategory %}&subcategory={{ active_subcategory }}{% endif %}"
+                                {% if active_sort == 'best-selling' %}selected{% endif %}>
+                            Best Selling
+                        </option>
+                    </select>
+                </div>
+                
+                <!-- Products Grid -->
+                <div class="product-grid">
+                    {% for product in products %}
+                    <div class="product-card">
+                        <a href="{% url 'product_detail' product.slug %}">
+                            <div class="product-image">
+                                {% if product.first_image %}
+                                <img src="{{ product.first_image }}" alt="{{ product.name }}">
+                                {% else %}
+                                <img src="{% static 'images/no-image.jpg' %}" alt="No image available">
+                                {% endif %}
+                                
+                                <div class="product-badges">
+                                    {% if product.new_arrival %}
+                                    <span class="badge badge-new">New</span>
+                                    {% endif %}
+                                    {% if product.discount_price %}
+                                    <span class="badge badge-sale">Sale</span>
+                                    {% endif %}
+                                    {% if product.best_selling %}
+                                    <span class="badge badge-bestseller">Best Seller</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="product-info">
+                                <h5 class="product-title">{{ product.name }}</h5>
+                                <div class="product-price">
+                                    {% if product.discount_price %}
+                                    <span class="original-price">৳{{ product.selling_price }}</span>
+                                    ৳{{ product.discount_price }}
+                                    {% else %}
+                                    {% if product.show_price %}
+                                    ৳{{ product.selling_price }}
+                                    {% else %}
+                                    Contact for Price
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    {% empty %}
+                    <div class="col-12 text-center">
+                        <p>No products found.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Pagination -->
+                {% if products.has_other_pages %}
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if products.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ products.previous_page_number }}{% if active_category %}&category={{ active_category }}{% endif %}{% if active_subcategory %}&subcategory={{ active_subcategory }}{% endif %}{% if active_sort %}&sort={{ active_sort }}{% endif %}">
+                                Previous
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        {% for num in products.paginator.page_range %}
+                        <li class="page-item {% if products.number == num %}active{% endif %}">
+                            <a class="page-link" href="?page={{ num }}{% if active_category %}&category={{ active_category }}{% endif %}{% if active_subcategory %}&subcategory={{ active_subcategory }}{% endif %}{% if active_sort %}&sort={{ active_sort }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                        
+                        {% if products.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ products.next_page_number }}{% if active_category %}&category={{ active_category }}{% endif %}{% if active_subcategory %}&subcategory={{ active_subcategory }}{% endif %}{% if active_sort %}&sort={{ active_sort }}{% endif %}">
+                                Next
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

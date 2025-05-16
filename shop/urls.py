@@ -26,6 +26,7 @@ urlpatterns = [
     path('product/<slug:slug>/', views.product_detail, name='product_detail'),
     path('category/<slug:category_slug>/', views.category_view, name='category'),
     path('search/', views.search_results, name='search_results'),
+    path('products/', views.products_view, name='products'),
     
     # Image management URLs (staff only)
     path('manage/product/image/delete/', views.delete_product_image, name='delete_product_image'),
@@ -35,6 +36,7 @@ urlpatterns = [
     # Subcategory URL
     path('manage/get-subcategories/', views.get_subcategories, name='get_subcategories'),
 ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

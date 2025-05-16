@@ -12,7 +12,7 @@ from django.db.models.signals import pre_save, post_save, pre_delete, post_delet
 from django.dispatch import receiver
 import json
 
-from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory
+from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory, SiteSettings
 from .forms import ProductCreateForm, ProductEditForm, ProductImageFormSet
 
 # Create a context processor to make categories available in all templates
@@ -23,6 +23,15 @@ def categories_processor(request):
     categories = ProductCategory.objects.all()
     return {
         'categories': categories,
+    }
+
+def site_settings_processor(request):
+    """
+    Context processor to make site settings available in all templates
+    """
+    settings = SiteSettings.get_settings()
+    return {
+        'site_settings': settings,
     }
 
 @staff_member_required
@@ -279,3 +288,56 @@ def get_subcategories(request):
         data = [{'id': sub.id, 'name': sub.name} for sub in subcategories]
         return JsonResponse(data, safe=False)
     return JsonResponse([], safe=False)
+
+def products_view(request):
+    # Get all categories with their subcategories
+    categories = ProductCategory.objects.prefetch_related('sub_categories').all()
+    
+    # Get filter parameters
+    category_slug = request.GET.get('category')
+    subcategory_slug = request.GET.get('subcategory')
+    sort_by = request.GET.get('sort', 'newest')
+    
+    # Initialize products queryset
+    products = Product.objects.filter(available=True)
+    
+    # Apply category filter if selected
+    if category_slug:
+        category = get_object_or_404(ProductCategory, slug=category_slug)
+        products = products.filter(category=category)
+        
+        # Apply subcategory filter if selected
+        if subcategory_slug:
+            subcategory = get_object_or_404(ProductSubCategory, slug=subcategory_slug)
+            products = products.filter(subcategory=subcategory)
+    
+    # Apply sorting
+    if sort_by == 'price-low':
+        products = products.order_by('selling_price')
+    elif sort_by == 'price-high':
+        products = products.order_by('-selling_price')
+    elif sort_by == 'best-selling':
+        products = products.filter(best_selling=True).order_by('-id')
+    else:  # newest by default
+        products = products.order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(products, 12)  # Show 12 products per page
+    page = request.GET.get('page')
+    
+    try:
+        products = paginator.page(page)
+    except PageNotAnInteger:
+        products = paginator.page(1)
+    except EmptyPage:
+        products = paginator.page(paginator.num_pages)
+    
+    context = {
+        'categories': categories,
+        'products': products,
+        'active_category': category_slug,
+        'active_subcategory': subcategory_slug,
+        'active_sort': sort_by,
+        'title': 'All Products',
+    }
+    return render(request, 'shop/products.html', context)

@@ -3,6 +3,7 @@ from django.db import models
 from django.utils.text import slugify
 import uuid
 from decimal import Decimal
+from django.core.exceptions import ValidationError
 #from django_summernote.fields import SummernoteTextField
 
 
@@ -221,5 +222,74 @@ class ProductSupplier(models.Model):
         unique_together = ('product', 'supplier')
     def __str__(self):
         return f"{self.supplier.name} supplies {self.product.name} at BDT {self.buying_price}"
+
+class SiteSettings(models.Model):
+    """
+    Model to store site-wide settings including logos and branding elements.
+    This model is designed to have only one instance (singleton pattern).
+    """
+    site_name = models.CharField(max_length=100, default="Sanjilas Shop")
+    site_description = models.TextField(blank=True, help_text="Brief description of the website for SEO")
+    
+    # Logo fields for different contexts
+    navbar_logo = models.ImageField(
+        upload_to='site_logos/',
+        help_text="Logo for the navigation bar (recommended size: 200x50px)",
+        blank=True
+    )
+    footer_logo = models.ImageField(
+        upload_to='site_logos/',
+        help_text="Logo for the footer (recommended size: 200x50px)",
+        blank=True
+    )
+    favicon = models.ImageField(
+        upload_to='site_logos/',
+        help_text="Favicon for the website (recommended size: 32x32px)",
+        blank=True
+    )
+    
+    # Contact Information
+    contact_email = models.EmailField(blank=True)
+    contact_phone = models.CharField(max_length=20, blank=True)
+    contact_address = models.TextField(blank=True)
+    
+    # Social Media Links
+    facebook_url = models.URLField(blank=True)
+    instagram_url = models.URLField(blank=True)
+    twitter_url = models.URLField(blank=True)
+    youtube_url = models.URLField(blank=True, help_text="YouTube channel or video URL")
+    threads_url = models.URLField(blank=True, help_text="Threads profile URL")
+    
+    # Meta Information
+    meta_keywords = models.CharField(max_length=255, blank=True, help_text="Comma-separated keywords for SEO")
+    meta_description = models.TextField(blank=True, help_text="Meta description for SEO")
+    
+    # Footer Text
+    footer_text = models.TextField(blank=True, help_text="Text to display in the footer")
+    copyright_text = models.CharField(max_length=255, default="© 2024 Sanjilas Shop. All rights reserved.")
+    
+    class Meta:
+        verbose_name = 'Site Settings'
+        verbose_name_plural = 'Site Settings'
+    
+    def __str__(self):
+        return self.site_name
+    
+    @classmethod
+    def get_settings(cls):
+        """
+        Get or create the single instance of SiteSettings.
+        This ensures we always have exactly one settings object.
+        """
+        settings, created = cls.objects.get_or_create(pk=1)
+        return settings
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save to ensure only one instance exists
+        """
+        if not self.pk and self.__class__.objects.exists():
+            raise ValidationError('There can be only one SiteSettings instance')
+        super().save(*args, **kwargs)
 
 

@@ -6,7 +6,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SANJILA'S - {% block title %}Luxury Jewelry{% endblock %}</title>
+    
+    <!-- SEO Meta Tags -->
+    <title>{{ site_settings.site_name }} - {% block title %}Luxury Jewelry{% endblock %}</title>
+    {% if site_settings.meta_description %}
+    <meta name="description" content="{{ site_settings.meta_description }}">
+    {% endif %}
+    {% if site_settings.meta_keywords %}
+    <meta name="keywords" content="{{ site_settings.meta_keywords }}">
+    {% endif %}
+    
+    <!-- Favicon -->
+    {% if site_settings.favicon %}
+    <link rel="icon" type="image/png" href="{{ site_settings.favicon.url }}">
+    {% endif %}
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -144,6 +157,10 @@
             color: white;
         }
         
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
         .search-input:focus {
             background: rgba(255, 255, 255, 0.1);
             border-color: var(--primary-color);
@@ -264,6 +281,64 @@
                 margin-top: 20px;
             }
         }
+        
+        /* Custom Threads Icon Styles */
+        .threads-icon {
+            display: inline-block;
+            width: 1em;
+            height: 1em;
+            vertical-align: -0.125em;
+            fill: currentColor;
+        }
+        
+        .social-icons a:hover .threads-icon {
+            fill: var(--primary-color);
+        }
+        
+        /* Ensure consistent icon sizes */
+        .social-icons a i,
+        .social-icons a .threads-icon {
+            font-size: 1.2rem;
+            width: 1.2rem;
+            height: 1.2rem;
+            line-height: 1.2rem;
+            text-align: center;
+        }
+        
+        .navbar-toggler {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 0.9)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+        
+        .navbar-toggler:focus {
+            box-shadow: none;
+            border-color: var(--primary-color);
+        }
+        
+        /* Mobile cart icon styles */
+        @media (max-width: 991.98px) {
+            .navbar .container {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            
+            .navbar-brand {
+                margin-right: auto;
+            }
+            
+            .navbar .nav-link.d-lg-none {
+                padding: 0.5rem;
+                margin-right: 0.5rem;
+            }
+            
+            .navbar-toggler {
+                margin-left: 0.5rem;
+            }
+        }
     </style>
     
     <!-- Google Fonts -->
@@ -275,14 +350,32 @@
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg fixed-top">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'index' %}">SANJILA'S</a>
+            <a class="navbar-brand" href="{% url 'index' %}">
+                {% if site_settings.navbar_logo %}
+                <img src="{{ site_settings.navbar_logo.url }}" alt="{{ site_settings.site_name }}" height="40">
+                {% else %}
+                {{ site_settings.site_name }}
+                {% endif %}
+            </a>
+            
+            <!-- Cart icon for mobile -->
+            <a class="nav-link position-relative d-lg-none me-3" href="{% url 'cart_view' %}">
+                <i class="fas fa-shopping-bag"></i>
+                <span class="cart-count">{{ cart_count }}</span>
+            </a>
+            
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
+            
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav mx-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'index' %}">Home</a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'products' %}">Products</a>
                     </li>
                     
                     <li class="nav-item dropdown position-static">
@@ -369,7 +462,8 @@
                         </a>
                     </li>
                     {% endif %}
-                    <li class="nav-item">
+                    <!-- Cart icon for desktop -->
+                    <li class="nav-item d-none d-lg-block">
                         <a class="nav-link position-relative" href="{% url 'cart_view' %}">
                             <i class="fas fa-shopping-bag"></i>
                             <span class="cart-count">{{ cart_count }}</span>
@@ -391,13 +485,32 @@
         <div class="container">
             <div class="row">
                 <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
-                    <a href="{% url 'index' %}" class="footer-logo">SANJILA'S</a>
-                    <p class="mb-4">Discover the perfect blend of traditional craftsmanship and modern elegance with our handcrafted jewelry collection.</p>
+                    <a href="{% url 'index' %}" class="footer-logo">
+                        {% if site_settings.footer_logo %}
+                        <img src="{{ site_settings.footer_logo.url }}" alt="{{ site_settings.site_name }}" height="40">
+                        {% else %}
+                        {{ site_settings.site_name }}
+                        {% endif %}
+                    </a>
+                    {% if site_settings.footer_text %}
+                    <p class="mb-4">{{ site_settings.footer_text }}</p>
+                    {% endif %}
                     <div class="social-icons">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-pinterest-p"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        {% if site_settings.facebook_url %}
+                        <a href="{{ site_settings.facebook_url }}" target="_blank" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+                        {% endif %}
+                        {% if site_settings.instagram_url %}
+                        <a href="{{ site_settings.instagram_url }}" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+                        {% endif %}
+                        {% if site_settings.twitter_url %}
+                        <a href="{{ site_settings.twitter_url }}" target="_blank" title="Twitter"><i class="fab fa-twitter"></i></a>
+                        {% endif %}
+                        {% if site_settings.youtube_url %}
+                        <a href="{{ site_settings.youtube_url }}" target="_blank" title="YouTube"><i class="fab fa-youtube"></i></a>
+                        {% endif %}
+                        {% if site_settings.threads_url %}
+                        <a href="{{ site_settings.threads_url }}" target="_blank" title="Threads"><i class="fas fa-at"></i></a>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="col-lg-3 col-md-6 mb-4 mb-lg-0">
@@ -420,21 +533,24 @@
                 </div>
                 <div class="col-lg-3 col-md-6">
                     <h5>Contact Us</h5>
+                    {% if site_settings.contact_address %}
                     <div class="contact-info">
                         <i class="fas fa-map-marker-alt"></i>
-                        <div>
-                            123 Jewelry Lane<br>
-                            Dhaka, Bangladesh
-                        </div>
+                        <div>{{ site_settings.contact_address|linebreaksbr }}</div>
                     </div>
+                    {% endif %}
+                    {% if site_settings.contact_phone %}
                     <div class="contact-info">
                         <i class="fas fa-phone-alt"></i>
-                        <div>+880 1234 567890</div>
+                        <div>{{ site_settings.contact_phone }}</div>
                     </div>
+                    {% endif %}
+                    {% if site_settings.contact_email %}
                     <div class="contact-info">
                         <i class="fas fa-envelope"></i>
-                        <div>info@sanjilas.com</div>
+                        <div>{{ site_settings.contact_email }}</div>
                     </div>
+                    {% endif %}
                     <div class="mt-4">
                         <h6 class="mb-3" style="color: #d4af37;">Subscribe to our newsletter</h6>
                         <div class="input-group">
@@ -446,7 +562,7 @@
             </div>
             <div class="row footer-bottom">
                 <div class="col-md-6 text-center text-md-start">
-                    <p>&copy; 2023 SANJILA'S. All rights reserved.</p>
+                    <p>{{ site_settings.copyright_text }}</p>
                 </div>
                 <div class="col-md-6 text-center text-md-end">
                     <div class="payment-methods">
