@@ -52,12 +52,11 @@
                         <!-- Image Slider for Multiple Images -->
                         <div id="allProductsCarousel{{ product.id }}" class="carousel slide" data-bs-ride="carousel">
                             <div class="carousel-inner">
-                                {% if product.images.all %}
-                                    {% for image in product.images.all %}
-                                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                                        <img src="{{ image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
+                                {% with first_image=product.images.first %}
+                                {% if first_image and first_image.image %}
+                                    <div class="carousel-item active">
+                                        <img src="{{ first_image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
                                     </div>
-                                    {% endfor %}
                                 {% else %}
                                     <div class="carousel-item active">
                                         <div class="product-img-placeholder d-flex align-items-center justify-content-center">
@@ -65,17 +64,8 @@
                                         </div>
                                     </div>
                                 {% endif %}
+                                {% endwith %}
                             </div>
-                            {% if product.images.all.count > 1 %}
-                            <button class="carousel-control-prev" type="button" data-bs-target="#allProductsCarousel{{ product.id }}" data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Previous</span>
-                            </button>
-                            <button class="carousel-control-next" type="button" data-bs-target="#allProductsCarousel{{ product.id }}" data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Next</span>
-                            </button>
-                            {% endif %}
                         </div>
 
                         <!-- Badges -->
@@ -195,12 +185,11 @@
                         <!-- Image Slider for Multiple Images -->
                         <div id="productCarousel{{ product.id }}" class="carousel slide" data-bs-ride="carousel">
                             <div class="carousel-inner">
-                                {% if product.images.all %}
-                                    {% for image in product.images.all %}
-                                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                                        <img src="{{ image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
+                                {% with first_image=product.images.first %}
+                                {% if first_image and first_image.image %}
+                                    <div class="carousel-item active">
+                                        <img src="{{ first_image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
                                     </div>
-                                    {% endfor %}
                                 {% else %}
                                     <div class="carousel-item active">
                                         <div class="product-img-placeholder d-flex align-items-center justify-content-center">
@@ -208,17 +197,8 @@
                                         </div>
                                     </div>
                                 {% endif %}
+                                {% endwith %}
                             </div>
-                            {% if product.images.all.count > 1 %}
-                            <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel{{ product.id }}" data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Previous</span>
-                            </button>
-                            <button class="carousel-control-next" type="button" data-bs-target="#productCarousel{{ product.id }}" data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Next</span>
-                            </button>
-                            {% endif %}
                         </div>
 
                         <!-- Badges -->
@@ -288,12 +268,11 @@
                         <!-- Image Slider for Multiple Images -->
                         <div id="bestSellingCarousel{{ product.id }}" class="carousel slide" data-bs-ride="carousel">
                             <div class="carousel-inner">
-                                {% if product.images.all %}
-                                    {% for image in product.images.all %}
-                                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                                        <img src="{{ image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
+                                {% with first_image=product.images.first %}
+                                {% if first_image and first_image.image %}
+                                    <div class="carousel-item active">
+                                        <img src="{{ first_image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
                                     </div>
-                                    {% endfor %}
                                 {% else %}
                                     <div class="carousel-item active">
                                         <div class="product-img-placeholder d-flex align-items-center justify-content-center">
@@ -301,17 +280,8 @@
                                         </div>
                                     </div>
                                 {% endif %}
+                                {% endwith %}
                             </div>
-                            {% if product.images.all.count > 1 %}
-                            <button class="carousel-control-prev" type="button" data-bs-target="#bestSellingCarousel{{ product.id }}" data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Previous</span>
-                            </button>
-                            <button class="carousel-control-next" type="button" data-bs-target="#bestSellingCarousel{{ product.id }}" data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Next</span>
-                            </button>
-                            {% endif %}
                         </div>
 
                         <!-- Badges -->
@@ -385,12 +355,11 @@
                         <!-- Image Slider for Multiple Images -->
                         <div id="trendingCarousel{{ product.id }}" class="carousel slide" data-bs-ride="carousel">
                             <div class="carousel-inner">
-                                {% if product.images.all %}
-                                    {% for image in product.images.all %}
-                                    <div class="carousel-item {% if forloop.first %}active{% endif %}">
-                                        <img src="{{ image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
+                                {% with first_image=product.images.first %}
+                                {% if first_image and first_image.image %}
+                                    <div class="carousel-item active">
+                                        <img src="{{ first_image.image.url }}" class="d-block w-100 product-img" alt="{{ product.name }}">
                                     </div>
-                                    {% endfor %}
                                 {% else %}
                                     <div class="carousel-item active">
                                         <div class="product-img-placeholder d-flex align-items-center justify-content-center">
@@ -398,17 +367,8 @@
                                         </div>
                                     </div>
                                 {% endif %}
+                                {% endwith %}
                             </div>
-                            {% if product.images.all.count > 1 %}
-                            <button class="carousel-control-prev" type="button" data-bs-target="#trendingCarousel{{ product.id }}" data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Previous</span>
-                            </button>
-                            <button class="carousel-control-next" type="button" data-bs-target="#trendingCarousel{{ product.id }}" data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Next</span>
-                            </button>
-                            {% endif %}
                         </div>
 
                         <!-- Badges -->

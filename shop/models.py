@@ -96,16 +96,10 @@ class Product(models.Model):
     def first_image(self):
         """Get the first image URL or None if no images are available."""
         try:
-            images = self.images.all()
-            if not images.exists():
-                return None
-                
-            first_image = images.first()
-            if not first_image or not first_image.image:
-                return None
-                
-            # Return the URL
-            return first_image.image.url
+            first_image = self.images.first()
+            if first_image and first_image.image:
+                return first_image.image.url
+            return None
         except (AttributeError, ValueError) as e:
             # Log error and return None if anything fails
             print(f"Error getting image for product {self.id}: {e}")
