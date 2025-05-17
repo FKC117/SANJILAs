@@ -88,6 +88,7 @@ class Product(models.Model):
     new_arrival = models.BooleanField(default=False)
     sku = models.CharField(max_length=50, unique=True, blank=True, null=True)
     preorder = models.BooleanField(default=False)
+    preorder_delivery_time = models.CharField(max_length=100, blank=True, null=True, default="20-25 days", help_text="Delivery time for preorder products (e.g., '20-25 days')")
     video_url = models.URLField(max_length=500, blank=True, null=True, help_text="Optional Video link from youtube or facebook")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

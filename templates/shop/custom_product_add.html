@@ -2,7 +2,7 @@
 {% load static %}
 {% load crispy_forms_tags %}
 
-{% block title %}Edit Product{% endblock %}
+{% block title %}Add Product{% endblock %}
 
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -441,8 +441,8 @@
                 <div class="admin-header animate__animated animate__fadeIn">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <h1 class="mb-2">Edit Product</h1>
-                            <p class="mb-0">Update your product information</p>
+                            <h1 class="mb-2">Add New Product</h1>
+                            <p class="mb-0">Create a new product listing</p>
                         </div>
                         <div>
                             <a href="{% url 'custom_product_list' %}" class="btn btn-back">
@@ -472,8 +472,8 @@
                 {% endif %}
 
                 <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
-            {% csrf_token %}
-            
+                    {% csrf_token %}
+                    
                     <!-- Basic Information Section -->
                     <div class="form-section">
                         <h3><i class="fas fa-info-circle"></i> Basic Information</h3>
@@ -518,7 +518,7 @@
                                         <i class="fas fa-heading"></i>
                                         A catchy headline for your product (optional)
                                     </small>
-                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="form-group">
@@ -528,7 +528,7 @@
                                 <i class="fas fa-align-left"></i>
                                 A brief summary of your product (max 500 characters)
                             </small>
-                    </div>
+                        </div>
                         <div class="form-group">
                             <label class="custom-label">Full Description</label>
                             {{ product_form.description }}
@@ -592,12 +592,12 @@
                                                                 {{ form.DELETE }}
                                                                 <label class="custom-control-label text-danger" for="{{ form.DELETE.id_for_label }}">
                                                                     <i class="fas fa-trash"></i> Delete image
-                                    </label>
-                                </div>
-                            </div>
-                                        {% endif %}
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    {% endif %}
                                                 </div>
-                                        </div>
+                                            </div>
                                         </div>
                                     </div>
                                 {% endfor %}
@@ -938,4 +938,4 @@
         });
     });
 </script>
-{% endblock %}
+{% endblock %} 

@@ -28,10 +28,10 @@ class ProductSupplierInline(admin.TabularInline):
     extra = 1
 class ProductAdmin(admin.ModelAdmin):
     inlines = [ProductImageInline, ProductSupplierInline]
-    list_display = ('name', 'sku', 'category', 'subcategory', 'show_price', 'selling_price', 'discount_price', 'discount_percentage', 'margin', 'available', 'stock','preorder')
+    list_display = ('name', 'sku', 'category', 'subcategory', 'show_price', 'selling_price', 'discount_price', 'discount_percentage', 'margin', 'available', 'stock', 'preorder', 'preorder_delivery_time')
     list_display_links = ('name', 'sku')
-    list_editable = ('selling_price', 'discount_percentage', 'discount_price', 'show_price', 'stock', 'preorder')
-    list_filter = ('suppliers', 'category', 'subcategory', 'available', 'featured', 'best_selling', 'trending', 'new_arrival')
+    list_editable = ('selling_price', 'discount_percentage', 'discount_price', 'show_price', 'stock', 'preorder', 'preorder_delivery_time')
+    list_filter = ('suppliers', 'category', 'subcategory', 'available', 'featured', 'best_selling', 'trending', 'new_arrival', 'preorder')
     # filter_horizontal = ('suppliers',)
     search_fields = ('name', 'category__name', 'subcategory__name', 'sku')
     list_per_page = 20

@@ -76,6 +76,19 @@
                     <span class="badge bg-success">In Stock</span>
                     {% elif product.preorder %}
                     <span class="badge bg-warning text-dark">Pre-order Available</span>
+                    {% if product.preorder_delivery_time %}
+                    <div class="preorder-message mt-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-info-circle me-2"></i>Pre-order Information</h5>
+                                <p class="card-text">
+                                    <i class="fas fa-truck me-2"></i>Delivery Time: {{ product.preorder_delivery_time }}<br>
+                                    <i class="fas fa-money-bill-wave me-2"></i>50% advance payment required
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% else %}
                     <span class="badge bg-danger">Out of Stock</span>
                     {% endif %}
@@ -439,6 +452,28 @@
     /* Make product.heading bold */
     .product-heading {
         font-weight: 900;
+    }
+
+    /* Add styles for preorder message */
+    .preorder-message .card {
+        border: 1px solid #ffc107;
+        background-color: #fff8e1;
+    }
+    
+    .preorder-message .card-title {
+        color: #856404;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .preorder-message .card-text {
+        color: #666;
+        font-size: 0.95rem;
+        margin-bottom: 0;
+    }
+    
+    .preorder-message .fas {
+        color: #ffc107;
     }
 </style>
 {% endblock %}

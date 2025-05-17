@@ -10,7 +10,7 @@ class ProductCreateForm(forms.ModelForm):
             'name', 'category', 'subcategory', 'heading', 'short_description',
             'description', 'selling_price', 'discount_percentage', 'stock', 'show_price',
             'available', 'featured', 'best_selling', 'trending', 'new_arrival', 'sku',
-            'preorder', 'video_url', 'buying_price'
+            'preorder', 'preorder_delivery_time', 'video_url', 'buying_price'
         ]
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
@@ -43,7 +43,7 @@ class ProductEditForm(forms.ModelForm):
             'name', 'category', 'subcategory', 'heading', 'short_description',
             'description', 'selling_price', 'discount_percentage', 'stock', 'show_price',
             'available', 'featured', 'best_selling', 'trending', 'new_arrival', 'sku',
-            'preorder', 'video_url', 'buying_price'
+            'preorder', 'preorder_delivery_time', 'video_url', 'buying_price'
         ]
         widgets = {
             'description': forms.Textarea(attrs={'rows': 4}),
