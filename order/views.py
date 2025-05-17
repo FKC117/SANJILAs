@@ -178,6 +178,19 @@ def cart_view(request):
                 print(f"Error processing cart item: {e}")
                 continue
         
+        # Get related products based on cart items
+        related_products = []
+        if cart_items:
+            # Get categories from cart items
+            categories = set(item['product'].category for item in cart_items)
+            # Get related products from these categories
+            related_products = Product.objects.filter(
+                category__in=categories,
+                available=True
+            ).exclude(
+                id__in=[item['product'].id for item in cart_items]
+            ).order_by('?')[:4]  # Random order, limit to 4 products
+        
         # Calculate cart totals
         cart_total = 0
         for item in cart_items:
@@ -239,7 +252,8 @@ def cart_view(request):
             'shipping_rates': {
                 'inside_dhaka': inside_dhaka_rate,
                 'outside_dhaka': outside_dhaka_rate
-            }
+            },
+            'related_products': related_products
         }
         
         return render(request, 'shop/cart.html', context)

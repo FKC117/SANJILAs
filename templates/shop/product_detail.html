@@ -89,7 +89,7 @@
                     </div>
                     
                     <div class="d-grid gap-2 d-md-block">
-                        <button type="button" class="btn btn-gold btn-lg me-md-2 mb-2 mb-md-0 add-to-cart" data-product-id="{{ product.id }}">
+                        <button type="button" class="btn btn-outline-dark btn-lg me-md-2 mb-2 mb-md-0 add-to-cart" data-product-id="{{ product.id }}">
                             <i class="fas fa-shopping-cart me-2"></i> Add to Cart
                         </button>
                         <button type="button" class="btn btn-outline-dark btn-lg">
@@ -121,38 +121,9 @@
     <!-- Product Description and Additional Information -->
     <div class="row mt-5">
         <div class="col-12">
-            <ul class="nav nav-tabs" id="productTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="description-tab" data-bs-toggle="tab" data-bs-target="#description" type="button" role="tab" aria-controls="description" aria-selected="true">Description</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="additional-tab" data-bs-toggle="tab" data-bs-target="#additional" type="button" role="tab" aria-controls="additional" aria-selected="false">Additional Information</button>
-                </li>
-            </ul>
-            <div class="tab-content mt-4" id="productTabsContent">
-                <div class="tab-pane fade show active" id="description" role="tabpanel" aria-labelledby="description-tab">
-                    <div class="product-description">
-                        {{ product.description|safe }}
-                    </div>
-                </div>
-                <div class="tab-pane fade" id="additional" role="tabpanel" aria-labelledby="additional-tab">
-                    <table class="table">
-                        <tbody>
-                            <tr>
-                                <th>Weight</th>
-                                <td>0.5 kg</td>
-                            </tr>
-                            <tr>
-                                <th>Dimensions</th>
-                                <td>10 × 5 × 2 cm</td>
-                            </tr>
-                            <tr>
-                                <th>Material</th>
-                                <td>Gold, Silver, Diamond</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <h3 class="description-heading">Description</h3>
+            <div class="product-description mt-4">
+                {{ product.description|safe }}
             </div>
         </div>
     </div>
@@ -161,21 +132,50 @@
     <div class="related-products mt-5 pt-4">
         <h3 class="section-title text-center mb-4">You May Also Like</h3>
         <div class="row">
-            {% for i in "1234"|make_list %}
+            {% for related_product in related_products %}
             <div class="col-md-3 mb-4">
                 <div class="product-card">
                     <div class="product-img-container">
-                        <div class="product-img-placeholder"></div>
+                        {% if related_product.images.first %}
+                        <img src="{{ related_product.images.first.image.url }}" alt="{{ related_product.name }}" class="product-img">
+                        {% else %}
+                        <div class="product-img-placeholder d-flex align-items-center justify-content-center">
+                            <i class="fas fa-image text-muted"></i>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Badges -->
+                        {% if related_product.discount_percentage > 0 %}
+                        <span class="discount-badge">-{{ related_product.discount_percentage }}%</span>
+                        {% endif %}
+                        {% if related_product.new_arrival %}
+                        <span class="new-badge">New</span>
+                        {% endif %}
+                        {% if related_product.preorder %}
+                        <span class="preorder-badge">Pre-order</span>
+                        {% endif %}
+                        
                         <div class="product-actions">
-                            <button class="action-btn"><i class="fas fa-heart"></i></button>
-                            <button class="action-btn"><i class="fas fa-shopping-cart"></i></button>
-                            <button class="action-btn"><i class="fas fa-eye"></i></button>
+                            <button class="action-btn add-to-cart" data-product-id="{{ related_product.id }}">
+                                <i class="fas fa-shopping-cart"></i>
+                            </button>
+                            <a href="{% url 'product_detail' related_product.slug %}" class="action-btn">
+                                <i class="fas fa-eye"></i>
+                            </a>
                         </div>
                     </div>
                     <div class="product-content">
-                        <h4 class="product-title">Related Product {{ i }}</h4>
+                        <div class="product-category">{{ related_product.category.name }}</div>
+                        <h4 class="product-title">
+                            <a href="{% url 'product_detail' related_product.slug %}">{{ related_product.name }}</a>
+                        </h4>
                         <div class="product-price">
-                            <span class="current-price">৳2,500</span>
+                            {% if related_product.discount_price %}
+                            <span class="current-price">৳{{ related_product.discount_price }}</span>
+                            <span class="original-price">৳{{ related_product.selling_price }}</span>
+                            {% else %}
+                            <span class="current-price">৳{{ related_product.selling_price }}</span>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -315,30 +315,14 @@
         color: #888;
     }
     
-    /* Tabs */
-    .nav-tabs {
-        border-bottom: 1px solid #dee2e6;
-    }
-    
-    .nav-tabs .nav-link {
-        color: #555;
+    /* Description Styles */
+    .description-heading {
+        font-size: 1.5rem;
         font-weight: 600;
-        border: none;
-        border-bottom: 3px solid transparent;
-        padding: 10px 20px;
-        margin-right: 10px;
-        transition: all 0.3s ease;
-    }
-    
-    .nav-tabs .nav-link:hover {
-        color: #d4af37;
-        border-color: transparent;
-    }
-    
-    .nav-tabs .nav-link.active {
-        color: #d4af37;
-        background-color: transparent;
-        border-color: #d4af37;
+        color: #333;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #d4af37;
+        margin-bottom: 20px;
     }
     
     .product-description {
@@ -347,9 +331,59 @@
         color: #555;
     }
     
+    /* Remove old tab styles */
+    .nav-tabs,
+    .nav-tabs .nav-link,
+    .nav-tabs .nav-link:hover,
+    .nav-tabs .nav-link.active {
+        display: none;
+    }
+    
     /* Related Products */
     .related-products {
         border-top: 1px solid #eee;
+    }
+    
+    .product-img-container {
+        position: relative;
+        height: 200px;
+        overflow: hidden;
+    }
+    
+    .product-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .product-img-placeholder {
+        background-color: #f5f5f5;
+        height: 100%;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .product-content {
+        padding: 15px;
+    }
+    
+    .product-category {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .product-title {
+        font-size: 1rem;
+        margin-bottom: 10px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     
     @media (max-width: 992px) {
@@ -407,6 +441,86 @@
                 }
             });
         }
+
+        // Add to cart functionality
+        const addToCartBtn = document.querySelector('.add-to-cart');
+        if (addToCartBtn) {
+            addToCartBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                
+                const productId = this.dataset.productId;
+                const quantity = parseInt(document.getElementById('quantity-input').value) || 1;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                try {
+                    const response = await fetch('{% url "cart_add" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            product_id: productId,
+                            quantity: quantity
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Update cart count in navbar
+                        const cartCount = document.querySelector('.cart-count');
+                        if (cartCount) {
+                            cartCount.textContent = data.cart_count;
+                        }
+                        
+                        // Show success notification
+                        showNotification(data.message, 'success');
+                    } else {
+                        showNotification(data.message, 'error');
+                    }
+                } catch (error) {
+                    showNotification('Failed to add product to cart', 'error');
+                }
+            });
+        }
     });
+
+    // Function to show notification
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `alert alert-${type} notification`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            padding: 15px 25px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            animation: slideIn 0.5s ease-out;
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.5s ease-out';
+            setTimeout(() => notification.remove(), 500);
+        }, 3000);
+    }
 </script>
+
+<style>
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+</style>
 {% endblock %} 
