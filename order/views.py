@@ -15,9 +15,11 @@ def cart_add(request):
                 data = json.loads(request.body)
                 product_id = data.get('product_id')
                 quantity = int(data.get('quantity', 1))
+                is_preorder = data.get('is_preorder', False)
             else:
                 product_id = request.POST.get('product_id')
                 quantity = int(request.POST.get('quantity', 1))
+                is_preorder = request.POST.get('is_preorder', False)
 
             if not product_id:
                 return JsonResponse({'success': False, 'message': 'No product ID provided'})
@@ -31,8 +33,8 @@ def cart_add(request):
             except Product.DoesNotExist:
                 return JsonResponse({'success': False, 'message': 'Product not found'})
                 
-            # Check stock availability
-            if product.stock is not None and product.stock < quantity:
+            # Check stock availability only if not a preorder
+            if not is_preorder and product.stock is not None and product.stock < quantity:
                 return JsonResponse({
                     'success': False, 
                     'message': f'Only {product.stock} items available in stock'
@@ -45,7 +47,8 @@ def cart_add(request):
             return JsonResponse({
                 'success': True,
                 'cart_count': cart.get_total_quantity(),
-                'message': f'{product.name} added to your cart.'
+                'message': f'{product.name} added to your cart.',
+                'is_preorder': is_preorder
             })
         except json.JSONDecodeError:
             return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
@@ -552,27 +555,42 @@ class Cart:
         if not cart:
             # save an empty cart in the session
             cart = self.session['cart'] = {}
-        self.cart = cart # self.cart will store dicts like {product_id: {'quantity': Q, 'price': P}}
+        self.cart = cart # self.cart will store dicts like {product_id: {'quantity': Q, 'price': P, 'is_preorder': B}}
+    
+    @property
+    def has_preorder_items(self):
+        """
+        Check if there are any preorder items in the cart.
+        """
+        try:
+            return any(item.get('is_preorder', False) for item in self.cart.values())
+        except Exception as e:
+            print(f"Error checking for preorder items: {e}")
+            return False
     
     def add(self, product, quantity=1, override_quantity=False):
         """
         Add a product to the cart or update its quantity.
-        Stores only product_id, quantity, and price (as string) in the session.
+        Stores product_id, quantity, price (as string), and is_preorder flag in the session.
         """
         try:
             product_id = str(product.id)
             selling_price = str(product.get_selling_price()) # Store price as string
             
             if product_id not in self.cart:
-                self.cart[product_id] = {'quantity': 0, 'price': selling_price}
+                self.cart[product_id] = {
+                    'quantity': 0,
+                    'price': selling_price,
+                    'is_preorder': product.preorder
+                }
             
             if override_quantity:
                 self.cart[product_id]['quantity'] = quantity
             else:
                 self.cart[product_id]['quantity'] += quantity
             
-            # Make sure quantity doesn't exceed available stock
-            if product.stock is not None and self.cart[product_id]['quantity'] > product.stock:
+            # Make sure quantity doesn't exceed available stock only if not a preorder
+            if not self.cart[product_id]['is_preorder'] and product.stock is not None and self.cart[product_id]['quantity'] > product.stock:
                 self.cart[product_id]['quantity'] = product.stock
             
             # Ensure price is up-to-date in cart if it changed on product
@@ -603,8 +621,8 @@ class Cart:
                     self.save()
                 return False
                 
-            # Make sure quantity doesn't exceed available stock
-            if product.stock is not None and quantity > product.stock:
+            # Make sure quantity doesn't exceed available stock only if not a preorder
+            if not self.cart[product_id]['is_preorder'] and product.stock is not None and quantity > product.stock:
                 quantity = product.stock
             
             # Update quantity    

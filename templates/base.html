@@ -339,6 +339,24 @@
                 margin-left: 0.5rem;
             }
         }
+        
+        /* Add styles for preorder indicator */
+        .preorder-indicator {
+            position: absolute;
+            top: -5px;
+            right: 15px;
+            background-color: #ffc107;
+            color: #000;
+            font-size: 0.7rem;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
     </style>
     
     <!-- Google Fonts -->
@@ -400,6 +418,11 @@
             <a class="nav-link position-relative d-lg-none me-3" href="{% url 'cart_view' %}">
                 <i class="fas fa-shopping-bag"></i>
                 <span class="cart-count">{{ cart_count }}</span>
+                {% if cart.has_preorder_items %}
+                <span class="preorder-indicator" title="Contains pre-order items">
+                    <i class="fas fa-clock"></i>
+                </span>
+                {% endif %}
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -505,6 +528,11 @@
                         <a class="nav-link position-relative" href="{% url 'cart_view' %}">
                             <i class="fas fa-shopping-bag"></i>
                             <span class="cart-count">{{ cart_count }}</span>
+                            {% if cart.has_preorder_items %}
+                            <span class="preorder-indicator" title="Contains pre-order items">
+                                <i class="fas fa-clock"></i>
+                            </span>
+                            {% endif %}
                         </a>
                     </li>
                 </ul>

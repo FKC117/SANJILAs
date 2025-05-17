@@ -4,6 +4,7 @@
 {% block title %}{{ product.name }}{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container pt-5 mt-5">
     <div class="row mb-4">
         <div class="col-12">
@@ -300,6 +301,32 @@
         color: #555;
         line-height: 1.6;
     }
+
+    /* Product Availability Badges */
+    .product-availability .badge {
+        font-size: 1rem;
+        padding: 8px 16px;
+        font-weight: 600;
+        border-radius: 4px;
+        display: inline-block;
+        margin-bottom: 1rem;
+    }
+
+    .product-availability .bg-success {
+        background-color: #28a745 !important;
+        color: white !important;
+    }
+
+    .product-availability .bg-warning {
+        background-color: #ffc107 !important;
+        color: #000 !important;
+    }
+
+    .product-availability .bg-danger {
+        background-color: #dc3545 !important;
+        color: white !important;
+        box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+    }
     
     /* Quantity Control */
     .quantity-input-group input {
@@ -500,6 +527,7 @@
             
             plusBtn.addEventListener('click', function() {
                 const currentValue = parseInt(quantityInput.value);
+                // For preorder products, don't limit the quantity
                 const max = quantityInput.hasAttribute('max') ? parseInt(quantityInput.getAttribute('max')) : 999;
                 
                 if (currentValue < max) {
@@ -509,46 +537,54 @@
         }
 
         // Add to cart functionality
-        const addToCartBtn = document.querySelector('.add-to-cart');
-        if (addToCartBtn) {
-            addToCartBtn.addEventListener('click', async function(e) {
-                e.preventDefault();
-                
-                const productId = this.dataset.productId;
-                const quantity = parseInt(document.getElementById('quantity-input').value) || 1;
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-                try {
-                    const response = await fetch('{% url "cart_add" %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({
-                            product_id: productId,
-                            quantity: quantity
-                        })
-                    });
-
-                    const data = await response.json();
+        const addToCartBtns = document.querySelectorAll('.add-to-cart');
+        if (addToCartBtns) {
+            addToCartBtns.forEach(btn => {
+                btn.addEventListener('click', async function(e) {
+                    e.preventDefault();
                     
-                    if (data.success) {
-                        // Update cart count in navbar
-                        const cartCount = document.querySelector('.cart-count');
-                        if (cartCount) {
-                            cartCount.textContent = data.cart_count;
-                        }
+                    const productId = this.dataset.productId;
+                    const quantity = parseInt(document.getElementById('quantity-input')?.value || 1);
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+                    try {
+                        const response = await fetch('/order/cart/add/', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrfToken,
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({
+                                product_id: productId,
+                                quantity: quantity,
+                                is_preorder: true // Add this flag to indicate it's a preorder
+                            })
+                        });
+
+                        const data = await response.json();
                         
-                        // Show success notification
-                        showNotification(data.message, 'success');
-                    } else {
-                        showNotification(data.message, 'error');
+                        if (data.success) {
+                            // Update cart count in navbar
+                            const cartCount = document.querySelector('.cart-count');
+                            if (cartCount) {
+                                cartCount.textContent = data.cart_count;
+                            }
+                            
+                            // Show success notification with preorder message if applicable
+                            let message = data.message;
+                            if (data.is_preorder) {
+                                message += ' (Pre-order)';
+                            }
+                            showNotification(message, 'success');
+                        } else {
+                            showNotification(data.message, 'error');
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        showNotification('Failed to add product to cart', 'error');
                     }
-                } catch (error) {
-                    showNotification('Failed to add product to cart', 'error');
-                }
+                });
             });
         }
     });
