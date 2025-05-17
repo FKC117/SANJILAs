@@ -352,7 +352,13 @@
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
 
-        gtag('config', '{{ settings.google_analytics_id }}');
+        // Configure Google Analytics with cookie settings
+        gtag('config', '{{ settings.google_analytics_id }}', {
+            'cookie_flags': 'SameSite=None;Secure',
+            'cookie_domain': 'auto',
+            'cookie_expires': 28 * 24 * 60 * 60, // 28 days in seconds
+            'cookie_update': false // Prevent automatic cookie updates
+        });
     </script>
     {% endif %}
     

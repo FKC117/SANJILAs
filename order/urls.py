@@ -9,6 +9,7 @@ urlpatterns = [
     path('cart/remove/', views.cart_remove, name='cart_remove'),
     path('cart/update/', views.cart_update, name='cart_update'),
     path('checkout/', views.checkout_view, name='checkout'),
+    path('order/success/', views.order_success_generic, name='order_success_generic'),
     path('order/success/<int:order_id>/', views.order_success, name='order_success'),
 ]
 if settings.DEBUG:

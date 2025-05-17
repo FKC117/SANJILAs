@@ -4,6 +4,21 @@
 
 {% block title %}Order Placed Successfully | SANJILA'S{% endblock %}
 
+{% block extra_js %}
+{% if meta_pixel_data %}
+<script>
+    fbq('track', 'Purchase', {
+        content_type: '{{ meta_pixel_data.content_type }}',
+        content_ids: {{ meta_pixel_data.content_ids|safe }},
+        content_name: {{ meta_pixel_data.content_name|safe }},
+        value: {{ meta_pixel_data.value }},
+        currency: '{{ meta_pixel_data.currency }}',
+        num_items: {{ meta_pixel_data.num_items }}
+    });
+</script>
+{% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="container pt-5 mt-5">
     <div class="row mb-4">

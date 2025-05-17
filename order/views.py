@@ -346,7 +346,23 @@ def checkout_view(request):
         
         cart.clear()
         messages.success(request, f'Order #{order.id} placed successfully!')
-        return redirect('order_success', order_id=order.id)
+        
+        # Store order details in session for Meta Pixel tracking
+        request.session['last_order'] = {
+            'id': order.id,
+            'total_amount': float(total_amount),
+            'currency': 'bdt',
+            'items': [
+                {
+                    'id': item.product.id,
+                    'name': item.product.name,
+                    'quantity': item.quantity,
+                    'price': float(item.unit_price)
+                } for item in order.items.all()
+            ]
+        }
+        
+        return redirect('order_success_generic')  # Redirect to generic success page
 
     # GET: Display checkout page
     template_cart_items = []
@@ -401,13 +417,64 @@ def checkout_view(request):
     }
     return render(request, 'shop/checkout.html', context)
 
+def order_success_generic(request):
+    """
+    Generic order success page that works with session data and includes Meta Pixel tracking.
+    """
+    # Get order details from session
+    order_data = request.session.get('last_order')
+    
+    if not order_data:
+        # If no order data in session, redirect to home
+        messages.warning(request, 'No order information found.')
+        return redirect('index')
+    
+    # Get the actual order from database
+    try:
+        order = Order.objects.get(id=order_data['id'])
+        order_items = OrderItem.objects.filter(order=order)
+    except Order.DoesNotExist:
+        messages.error(request, 'Order not found.')
+        return redirect('index')
+    
+    context = {
+        'order': order,
+        'order_items': order_items,
+        'meta_pixel_data': {
+            'content_type': 'product',
+            'content_ids': [str(item['id']) for item in order_data['items']],
+            'content_name': [item['name'] for item in order_data['items']],
+            'value': order_data['total_amount'],
+            'currency': order_data['currency'],
+            'num_items': sum(item['quantity'] for item in order_data['items'])
+        }
+    }
+    
+    # Clear the order data from session after using it
+    if 'last_order' in request.session:
+        del request.session['last_order']
+    
+    return render(request, 'shop/order_success.html', context)
+
+# Keep the old order_success view for backward compatibility
 def order_success(request, order_id):
     order = get_object_or_404(Order, id=order_id)
     order_items = OrderItem.objects.filter(order=order)
     
+    # Prepare Meta Pixel data
+    meta_pixel_data = {
+        'content_type': 'product',
+        'content_ids': [str(item.product.id) for item in order_items],
+        'content_name': [item.product.name for item in order_items],
+        'value': float(order.total_amount),
+        'currency': 'bdt',
+        'num_items': sum(item.quantity for item in order_items)
+    }
+    
     context = {
         'order': order,
-        'order_items': order_items
+        'order_items': order_items,
+        'meta_pixel_data': meta_pixel_data
     }
     
     return render(request, 'shop/order_success.html', context)
