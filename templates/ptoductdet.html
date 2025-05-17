@@ -70,7 +70,6 @@
                 <p class="product-short-desc mb-4">{{ product.short_description }}</p>
                 {% endif %}
 
-                <!-- Product Availability -->
                 <div class="product-availability mb-4">
                     {% if product.available and product.stock > 0 %}
                     <span class="badge bg-success">In Stock</span>
@@ -96,9 +95,9 @@
                         <button type="button" class="btn btn-outline-dark btn-lg me-md-2 mb-2 mb-md-0 add-to-cart" data-product-id="{{ product.id }}">
                             <i class="fas fa-shopping-cart me-2"></i> Add to Cart
                         </button>
-                        <!-- <button type="button" class="btn btn-outline-dark btn-lg">
+                        <button type="button" class="btn btn-outline-dark btn-lg">
                             <i class="fas fa-heart me-2"></i> Add to Wishlist
-                        </button> -->
+                        </button>
                     </div>
                 </div>
                 {% endif %}
@@ -106,15 +105,15 @@
                 <!-- Product Meta Information -->
                 <div class="product-meta">
                     <div class="meta-item mb-2">
-                        <span class="meta-label">SKU: </span>
+                        <span class="meta-label">SKU:</span>
                         <span class="meta-value">{{ product.sku }}</span>
                     </div>
                     <div class="meta-item mb-2">
-                        <span class="meta-label">Category: </span>
+                        <span class="meta-label">Category:</span>
                         <span class="meta-value">{{ product.category.name }}</span>
                     </div>
                     <div class="meta-item mb-2">
-                        <span class="meta-label">Subcategory: </span>
+                        <span class="meta-label">Subcategory:</span>
                         <span class="meta-value">{{ product.subcategory.name }}</span>
                     </div>
                 </div>
@@ -205,7 +204,7 @@
     }
     
     .breadcrumb-item a:hover {
-        color: #007bff;
+        color: #d4af37;
     }
     
     .breadcrumb-item.active {
@@ -214,16 +213,18 @@
     
     /* Product Images */
     .main-image-container {
-        width: 100%;
-        margin: 0 auto;
+        height: 500px;
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        overflow: hidden;
         display: flex;
-        justify-content: center;
         align-items: center;
+        justify-content: center;
     }
     
     .main-image {
-        width: 100%;
         height: 100%;
+        width: 100%;
         object-fit: contain;
     }
     
@@ -264,7 +265,7 @@
     .current-price {
         font-size: 2rem;
         font-weight: 700;
-        color: #007bff;
+        color: #d4af37;
     }
     
     .original-price {
@@ -274,7 +275,7 @@
     }
     
     .discount-badge {
-        background-color: #007bff;
+        background-color: #d4af37;
         color: white;
         padding: 5px 10px;
         border-radius: 4px;
@@ -307,7 +308,10 @@
     }
     
     .meta-label {
-        margin-right: 10px;
+        font-weight: 600;
+        color: #555;
+        width: 100px;
+        display: inline-block;
     }
     
     .meta-value {
@@ -316,8 +320,8 @@
     
     /* Description Styles */
     .description-heading {
-        font-size: 1.2rem;
-        font-weight: 700;
+        font-size: 1.5rem;
+        font-weight: 600;
         color: #333;
         padding-bottom: 10px;
         border-bottom: 2px solid #d4af37;
@@ -394,7 +398,7 @@
     .product-price .current-price {
         font-size: 1.1rem;
         font-weight: 600;
-        color: #1f33e6;
+        color: #d4af37;
     }
     
     .product-price .original-price {
@@ -425,20 +429,6 @@
         .main-image-container {
             height: 300px;
         }
-        .product-title {
-            font-size: 1.5rem;
-        }
-        .description-heading {
-            font-size: 1.2rem;
-        }
-        .product-short-desc, .product-description, .product-category, .meta-label, .meta-value {
-            font-size: 1rem;
-        }
-    }
-
-    /* Make product.heading bold */
-    .product-heading {
-        font-weight: 900;
     }
 </style>
 {% endblock %}
