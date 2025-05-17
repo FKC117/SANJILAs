@@ -106,13 +106,13 @@
                         </div>
                     </div>
                     
-                    <div class="d-grid gap-2 d-md-block">
+                    <div class="d-grid gap-2 d-md-flex">
                         <button type="button" class="btn btn-outline-dark btn-lg me-md-2 mb-2 mb-md-0 add-to-cart" data-product-id="{{ product.id }}">
                             <i class="fas fa-shopping-cart me-2"></i> Add to Cart
                         </button>
-                        <!-- <button type="button" class="btn btn-outline-dark btn-lg">
-                            <i class="fas fa-heart me-2"></i> Add to Wishlist
-                        </button> -->
+                        <a href="{% url 'cart_view' %}" class="btn btn-primary btn-lg checkout-btn">
+                            <i class="fas fa-credit-card me-2"></i> Checkout (<span class="checkout-count">{{ cart_count }}</span>)
+                        </a>
                     </div>
                 </div>
                 {% endif %}
@@ -558,7 +558,7 @@
                             body: JSON.stringify({
                                 product_id: productId,
                                 quantity: quantity,
-                                is_preorder: true // Add this flag to indicate it's a preorder
+                                is_preorder: true
                             })
                         });
 
@@ -569,6 +569,12 @@
                             const cartCount = document.querySelector('.cart-count');
                             if (cartCount) {
                                 cartCount.textContent = data.cart_count;
+                            }
+                            
+                            // Update checkout button count
+                            const checkoutCount = document.querySelector('.checkout-count');
+                            if (checkoutCount) {
+                                checkoutCount.textContent = data.cart_count;
                             }
                             
                             // Show success notification with preorder message if applicable
@@ -623,6 +629,27 @@
     @keyframes slideOut {
         from { transform: translateX(0); opacity: 1; }
         to { transform: translateX(100%); opacity: 0; }
+    }
+
+    /* Add styles for checkout button */
+    .checkout-btn {
+        background-color: #d4af37;
+        border-color: #d4af37;
+        color: #1a1a1a;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    
+    .checkout-btn:hover {
+        background-color: #c4a030;
+        border-color: #c4a030;
+        color: #1a1a1a;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .checkout-btn .checkout-count {
+        font-weight: bold;
     }
 </style>
 {% endblock %} 
