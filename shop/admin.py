@@ -101,8 +101,30 @@ admin.site.register(Supplier, SupplierAdmin)
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('site_name', 'site_description')
+        }),
+        ('Logos', {
+            'fields': ('navbar_logo', 'footer_logo', 'favicon')
+        }),
+        ('Contact Information', {
+            'fields': ('contact_email', 'contact_phone', 'contact_address')
+        }),
+        ('Social Media', {
+            'fields': ('facebook_url', 'instagram_url', 'twitter_url', 'youtube_url', 'threads_url')
+        }),
+        ('SEO & Analytics', {
+            'fields': ('meta_keywords', 'meta_description', 'google_analytics_id', 'meta_pixel_id'),
+            'description': 'Add your tracking IDs for Google Analytics and Meta Pixel'
+        }),
+        ('Footer', {
+            'fields': ('footer_text', 'copyright_text')
+        }),
+    )
+    
     def has_add_permission(self, request):
-        # Only allow one instance
+        # Only allow one instance of SiteSettings
         if self.model.objects.count() >= 1:
             return False
         return super().has_add_permission(request)
@@ -110,29 +132,6 @@ class SiteSettingsAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # Prevent deletion of the only instance
         return False
-    
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('site_name', 'site_description')
-        }),
-        ('Logo Settings', {
-            'fields': ('navbar_logo', 'footer_logo', 'favicon'),
-            'description': 'Upload logos for different parts of the website. Recommended sizes are provided in the help text.'
-        }),
-        ('Contact Information', {
-            'fields': ('contact_email', 'contact_phone', 'contact_address')
-        }),
-        ('Social Media', {
-            'fields': ('facebook_url', 'instagram_url', 'twitter_url', 'youtube_url', 'threads_url'),
-            'description': 'Add your social media profile URLs. Leave blank if not available.'
-        }),
-        ('SEO Settings', {
-            'fields': ('meta_keywords', 'meta_description')
-        }),
-        ('Footer Settings', {
-            'fields': ('footer_text', 'copyright_text')
-        }),
-    )
     
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)

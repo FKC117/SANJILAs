@@ -225,6 +225,20 @@ class SiteSettings(models.Model):
     site_name = models.CharField(max_length=100, default="Sanjilas Shop")
     site_description = models.TextField(blank=True, help_text="Brief description of the website for SEO")
     
+    # Google Analytics
+    google_analytics_id = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Google Analytics tracking ID (e.g., G-HL7GG88HT2)"
+    )
+    
+    # Meta Pixel
+    meta_pixel_id = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Meta Pixel ID (e.g., 644965951111560)"
+    )
+    
     # Logo fields for different contexts
     navbar_logo = models.ImageField(
         upload_to='site_logos/',

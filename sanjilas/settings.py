@@ -83,6 +83,7 @@ TEMPLATES = [
                 'shop.views.categories_processor',
                 'order.views.cart_context_processor',
                 'shop.views.site_settings_processor',
+                'shop.context_processors.site_settings',
             ],
         },
     },
