@@ -5,6 +5,7 @@ from django.contrib import messages
 from .models import Order, OrderItem, ShippingRate
 import json
 from decimal import Decimal  # Add this import at the top
+from django.db.models import Q, Case, When, IntegerField
 
 def cart_add(request):
     if request.method == 'POST':
@@ -181,15 +182,36 @@ def cart_view(request):
         # Get related products based on cart items
         related_products = []
         if cart_items:
-            # Get categories from cart items
-            categories = set(item['product'].category for item in cart_items)
-            # Get related products from these categories
+            # Get categories and subcategories from cart items
+            categories = set()
+            subcategories = set()
+            for item in cart_items:
+                try:
+                    product = item['product']
+                    if product.category:
+                        categories.add(product.category)
+                    if product.subcategory:
+                        subcategories.add(product.subcategory)
+                except (AttributeError, TypeError) as e:
+                    print(f"Error getting category/subcategory: {e}")
+                    continue
+
+            # Get products from the same categories and subcategories
+            # Prioritize products from the same subcategory first
             related_products = Product.objects.filter(
-                category__in=categories,
+                Q(subcategory__in=subcategories) | Q(category__in=categories),
                 available=True
             ).exclude(
                 id__in=[item['product'].id for item in cart_items]
-            ).order_by('?')[:4]  # Random order, limit to 4 products
+            ).order_by(
+                # Order by subcategory match first, then random
+                Case(
+                    When(subcategory__in=subcategories, then=0),
+                    default=1,
+                    output_field=IntegerField(),
+                ),
+                '?'
+            )[:4]  # Limit to 4 products
         
         # Calculate cart totals
         cart_total = 0

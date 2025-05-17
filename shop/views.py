@@ -10,6 +10,7 @@ from django.http import JsonResponse, HttpResponseNotAllowed
 from django.views.decorators.http import require_POST
 from django.db.models.signals import pre_save, post_save, pre_delete, post_delete
 from django.dispatch import receiver
+from django.db.models import Q, Case, When, IntegerField
 import json
 
 from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory, SiteSettings
@@ -160,17 +161,27 @@ def index(request):
     return render(request, 'shop/index.html', context)
 
 def product_detail(request, slug):
-    product = get_object_or_404(Product, slug=slug)
+    product = get_object_or_404(Product, slug=slug, available=True)
     
-    # Get related products based on the same category
+    # Get related products using the same logic as cart view
     related_products = Product.objects.filter(
-        category=product.category,
+        Q(subcategory=product.subcategory) | Q(category=product.category),
         available=True
-    ).exclude(id=product.id)[:4]
+    ).exclude(
+        id=product.id
+    ).order_by(
+        # Order by subcategory match first, then random
+        Case(
+            When(subcategory=product.subcategory, then=0),
+            default=1,
+            output_field=IntegerField(),
+        ),
+        '?'
+    )[:4]  # Limit to 4 products
     
     context = {
         'product': product,
-        'related_products': related_products,
+        'related_products': related_products
     }
     return render(request, 'shop/product_detail.html', context)
 

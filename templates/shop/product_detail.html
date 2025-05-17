@@ -386,6 +386,24 @@
         white-space: nowrap;
     }
     
+    .product-price {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .product-price .current-price {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #d4af37;
+    }
+    
+    .product-price .original-price {
+        font-size: 0.85rem;
+        color: #999;
+        text-decoration: line-through;
+    }
+    
     @media (max-width: 992px) {
         .main-image-container {
             height: 400px;
