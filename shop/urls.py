@@ -27,6 +27,8 @@ urlpatterns = [
     path('category/<slug:category_slug>/', views.category_view, name='category'),
     path('search/', views.search_results, name='search_results'),
     path('products/', views.products_view, name='products'),
+    path('contact/', views.contact, name='contact'),
+    path('about/', views.about, name='about'),
     
     # Image management URLs (staff only)
     path('manage/product/image/delete/', views.delete_product_image, name='delete_product_image'),

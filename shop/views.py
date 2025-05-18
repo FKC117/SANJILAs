@@ -13,7 +13,7 @@ from django.dispatch import receiver
 from django.db.models import Q, Case, When, IntegerField
 import json
 
-from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory, SiteSettings
+from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory, SiteSettings, AboutUs, Contact
 from .forms import ProductCreateForm, ProductEditForm, ProductImageFormSet
 
 # Create a context processor to make categories available in all templates
@@ -126,55 +126,82 @@ def set_primary_image(request):
     # This feature is not implemented because the model does not support a primary image
     return JsonResponse({'status': 'error', 'message': 'Primary image feature not implemented.'}, status=400)
 
+def get_navigation_links():
+    """Get dynamic navigation links based on product categories and sections."""
+    categories = ProductCategory.objects.all()
+    new_arrivals = Product.objects.filter(new_arrival=True).exists()
+    best_sellers = Product.objects.filter(best_selling=True).exists()
+    trending = Product.objects.filter(trending=True).exists()
+    featured = Product.objects.filter(featured=True).exists()
+    
+    return {
+        'categories': categories,
+        'new_arrivals': new_arrivals,
+        'best_sellers': best_sellers,
+        'trending': trending,
+        'featured': featured
+    }
+
+def get_footer_links():
+    """Get dynamic footer links based on product categories and sections."""
+    categories = ProductCategory.objects.all()
+    subcategories = ProductSubCategory.objects.all()
+    
+    return {
+        'categories': categories,
+        'subcategories': subcategories
+    }
+
 def index(request):
-    # Get hero content
+    # Get hero content and images
     hero_content = HeroContent.objects.filter(publish=True).first()
     hero_images = HeroImage.objects.filter(hero_content=hero_content).order_by('order') if hero_content else None
     
-    # New Arrivals Section (8 latest products)
+    # Get navigation and footer links
+    nav_links = get_navigation_links()
+    footer_links = get_footer_links()
+    
+    # Get About Us content
+    about_us = AboutUs.get_about_us()
+    
+    # Get products for each section with pagination
+    # For new arrivals, get the 16 most recent products
+    new_arrival = Product.objects.filter(
+        available=True
+    ).order_by('-created_at')[:16]  # Get only the 16 most recent products
+    
+    trending = Product.objects.filter(trending=True, available=True).order_by('-created_at')
+    products = Product.objects.filter(available=True).order_by('-created_at')
+    best_selling = Product.objects.filter(best_selling=True, available=True).order_by('-created_at')
+    featured = Product.objects.filter(featured=True, available=True).order_by('-created_at')
+    
+    # Pagination for each section
     new_arrival_page = request.GET.get('new_arrival_page', 1)
-    new_arrival_products = Product.objects.filter(available=True).order_by('-created_at')
-    new_arrival_paginator = Paginator(new_arrival_products, 8)
-    try:
-        new_arrival = new_arrival_paginator.page(new_arrival_page)
-    except (PageNotAnInteger, EmptyPage):
-        new_arrival = new_arrival_paginator.page(1)
-    
-    # Trending Section
     trending_page = request.GET.get('trending_page', 1)
-    trending_products = Product.objects.filter(trending=True, available=True).order_by('-id')
-    trending_paginator = Paginator(trending_products, 8)
-    try:
-        trending = trending_paginator.page(trending_page)
-    except (PageNotAnInteger, EmptyPage):
-        trending = trending_paginator.page(1)
-    
-    # All Products Section
     products_page = request.GET.get('products_page', 1)
-    all_products = Product.objects.filter(available=True).order_by('-created_at')
-    products_paginator = Paginator(all_products, 8)
-    try:
-        products = products_paginator.page(products_page)
-    except (PageNotAnInteger, EmptyPage):
-        products = products_paginator.page(1)
-    
-    # Best Selling Section
     best_selling_page = request.GET.get('best_selling_page', 1)
-    best_selling_products = Product.objects.filter(best_selling=True, available=True).order_by('-id')
-    best_selling_paginator = Paginator(best_selling_products, 8)
-    try:
-        best_selling = best_selling_paginator.page(best_selling_page)
-    except (PageNotAnInteger, EmptyPage):
-        best_selling = best_selling_paginator.page(1)
-    
-    # Featured Section
     featured_page = request.GET.get('featured_page', 1)
-    featured_products = Product.objects.filter(featured=True, available=True).order_by('-id')
-    featured_paginator = Paginator(featured_products, 8)
+    
+    # Create paginators
+    new_arrival_paginator = Paginator(new_arrival, 8)  # Show 8 products per page
+    trending_paginator = Paginator(trending, 8)
+    products_paginator = Paginator(products, 8)
+    best_selling_paginator = Paginator(best_selling, 8)
+    featured_paginator = Paginator(featured, 8)
+    
+    # Get page objects
     try:
-        featured = featured_paginator.page(featured_page)
+        new_arrival = new_arrival_paginator.get_page(new_arrival_page)
+        trending = trending_paginator.get_page(trending_page)
+        products = products_paginator.get_page(products_page)
+        best_selling = best_selling_paginator.get_page(best_selling_page)
+        featured = featured_paginator.get_page(featured_page)
     except (PageNotAnInteger, EmptyPage):
-        featured = featured_paginator.page(1)
+        new_arrival = new_arrival_paginator.get_page(1)
+        trending = trending_paginator.get_page(1)
+        products = products_paginator.get_page(1)
+        best_selling = best_selling_paginator.get_page(1)
+        featured = featured_paginator.get_page(1)
     
     context = {
         'hero_content': hero_content,
@@ -184,7 +211,11 @@ def index(request):
         'products': products,
         'best_selling': best_selling,
         'featured': featured,
+        'nav_links': nav_links,
+        'footer_links': footer_links,
+        'about_us': about_us
     }
+    
     return render(request, 'shop/index.html', context)
 
 def product_detail(request, slug):
@@ -208,7 +239,9 @@ def product_detail(request, slug):
     
     context = {
         'product': product,
-        'related_products': related_products
+        'related_products': related_products,
+        'nav_links': get_navigation_links(),
+        'footer_links': get_footer_links(),
     }
     return render(request, 'shop/product_detail.html', context)
 
@@ -257,6 +290,8 @@ def category_view(request, category_slug):
         'products': products,
         'active_subcategory': subcategory_slug,
         'active_sort': sort_by,
+        'nav_links': get_navigation_links(),
+        'footer_links': get_footer_links(),
     }
     return render(request, 'shop/category.html', context)
 
@@ -292,6 +327,8 @@ def search_results(request):
         'products': products,
         'query': query,
         'total_results': products_list.count(),
+        'nav_links': get_navigation_links(),
+        'footer_links': get_footer_links(),
     }
     return render(request, 'shop/search_results.html', context)
 
@@ -377,5 +414,42 @@ def products_view(request):
         'active_subcategory': subcategory_slug,
         'active_sort': sort_by,
         'title': 'All Products',
+        'nav_links': get_navigation_links(),
+        'footer_links': get_footer_links(),
     }
     return render(request, 'shop/products.html', context)
+
+def about(request):
+    about_us = AboutUs.get_about_us()
+    context = {
+        'about_us': about_us,
+        'site_settings': SiteSettings.get_settings(),
+        'nav_links': get_navigation_links(),
+        'footer_links': get_footer_links(),
+    }
+    return render(request, 'shop/about.html', context)
+
+def contact(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        subject = request.POST.get('subject')
+        message = request.POST.get('message')
+        
+        try:
+            Contact.objects.create(
+                name=name,
+                email=email,
+                subject=subject,
+                message=message
+            )
+            messages.success(request, 'Your message has been sent successfully. We will get back to you soon!')
+        except Exception as e:
+            messages.error(request, 'Sorry, there was an error sending your message. Please try again later.')
+    
+    context = {
+        'site_settings': SiteSettings.get_settings(),
+        'nav_links': get_navigation_links(),
+        'footer_links': get_footer_links(),
+    }
+    return render(request, 'shop/contact.html', context)

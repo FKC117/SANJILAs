@@ -144,3 +144,26 @@ class SiteSettingsAdmin(admin.ModelAdmin):
                         getattr(obj, field).url
                     )
         return form
+
+@admin.register(AboutUs)
+class AboutUsAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        # Only allow one instance
+        if self.model.objects.count() >= 1:
+            return False
+        return super().has_add_permission(request)
+
+@admin.register(Contact)
+class ContactAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'subject', 'created_at', 'is_read')
+    list_filter = ('is_read', 'created_at')
+    search_fields = ('name', 'email', 'subject', 'message')
+    readonly_fields = ('name', 'email', 'subject', 'message', 'created_at')
+    list_editable = ('is_read',)
+    ordering = ('-created_at',)
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        return True

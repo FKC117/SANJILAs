@@ -301,4 +301,38 @@ class SiteSettings(models.Model):
             raise ValidationError('There can be only one SiteSettings instance')
         super().save(*args, **kwargs)
 
+class AboutUs(models.Model):
+    title = models.CharField(max_length=255)
+    content = models.TextField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'About Us'
+        verbose_name_plural = 'About Us'
+
+    def __str__(self):
+        return self.title
+
+    @classmethod
+    def get_about_us(cls):
+        """Get or create the single instance of AboutUs."""
+        about_us, created = cls.objects.get_or_create(pk=1)
+        return about_us
+
+class Contact(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    subject = models.CharField(max_length=200)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = 'Contact Message'
+        verbose_name_plural = 'Contact Messages'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Message from {self.name} - {self.subject}"
+
 
