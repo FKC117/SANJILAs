@@ -127,36 +127,63 @@ def set_primary_image(request):
     return JsonResponse({'status': 'error', 'message': 'Primary image feature not implemented.'}, status=400)
 
 def index(request):
-    # Get featured products for each section
-    new_arrival = Product.objects.filter(new_arrival=True, available=True).order_by('-created_at')[:12]
-    best_selling = Product.objects.filter(best_selling=True, available=True).order_by('-id')[:12]
-    trending = Product.objects.filter(trending=True, available=True).order_by('-id')[:12]
-    
-    # Get all available products for the main products section
-    all_products = Product.objects.filter(available=True).order_by('-created_at')
-    
-    # Pagination for all products
-    paginator = Paginator(all_products, 10)  # Show 10 products per page
-    page = request.GET.get('page')
-    try:
-        products = paginator.page(page)
-    except PageNotAnInteger:
-        products = paginator.page(1)
-    except EmptyPage:
-        products = paginator.page(paginator.num_pages)
-    
     # Get hero content
     hero_content = HeroContent.objects.filter(publish=True).first()
     hero_images = HeroImage.objects.filter(hero_content=hero_content).order_by('order') if hero_content else None
+    
+    # New Arrivals Section (8 latest products)
+    new_arrival_page = request.GET.get('new_arrival_page', 1)
+    new_arrival_products = Product.objects.filter(available=True).order_by('-created_at')
+    new_arrival_paginator = Paginator(new_arrival_products, 8)
+    try:
+        new_arrival = new_arrival_paginator.page(new_arrival_page)
+    except (PageNotAnInteger, EmptyPage):
+        new_arrival = new_arrival_paginator.page(1)
+    
+    # Trending Section
+    trending_page = request.GET.get('trending_page', 1)
+    trending_products = Product.objects.filter(trending=True, available=True).order_by('-id')
+    trending_paginator = Paginator(trending_products, 8)
+    try:
+        trending = trending_paginator.page(trending_page)
+    except (PageNotAnInteger, EmptyPage):
+        trending = trending_paginator.page(1)
+    
+    # All Products Section
+    products_page = request.GET.get('products_page', 1)
+    all_products = Product.objects.filter(available=True).order_by('-created_at')
+    products_paginator = Paginator(all_products, 8)
+    try:
+        products = products_paginator.page(products_page)
+    except (PageNotAnInteger, EmptyPage):
+        products = products_paginator.page(1)
+    
+    # Best Selling Section
+    best_selling_page = request.GET.get('best_selling_page', 1)
+    best_selling_products = Product.objects.filter(best_selling=True, available=True).order_by('-id')
+    best_selling_paginator = Paginator(best_selling_products, 8)
+    try:
+        best_selling = best_selling_paginator.page(best_selling_page)
+    except (PageNotAnInteger, EmptyPage):
+        best_selling = best_selling_paginator.page(1)
+    
+    # Featured Section
+    featured_page = request.GET.get('featured_page', 1)
+    featured_products = Product.objects.filter(featured=True, available=True).order_by('-id')
+    featured_paginator = Paginator(featured_products, 8)
+    try:
+        featured = featured_paginator.page(featured_page)
+    except (PageNotAnInteger, EmptyPage):
+        featured = featured_paginator.page(1)
     
     context = {
         'hero_content': hero_content,
         'hero_images': hero_images,
         'new_arrival': new_arrival,
-        'best_selling': best_selling,
         'trending': trending,
-        'products': products,  # Paginated all products
-        'total_products': all_products.count(),
+        'products': products,
+        'best_selling': best_selling,
+        'featured': featured,
     }
     return render(request, 'shop/index.html', context)
 
