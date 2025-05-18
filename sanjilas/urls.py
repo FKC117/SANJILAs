@@ -15,6 +15,7 @@ urlpatterns = [
     path('', shop_views.index, name='index'),  # Root URL goes to the shop index
     path('shop/', include('shop.urls')),
     path('order/', include('order.urls')),
+    path('shipping/', include('shipping.urls')),
 ]
 
 if settings.DEBUG:
