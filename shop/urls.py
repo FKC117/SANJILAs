@@ -10,7 +10,7 @@ urlpatterns = [
     path('staff/login/', auth_views.LoginView.as_view(
         template_name='shop/staff/login.html',
         redirect_authenticated_user=True,
-        next_page='/shop/manage/products/'
+        next_page=None  # Let the view handle next parameter
     ), name='staff_login'),
     path('staff/logout/', auth_views.LogoutView.as_view(
         template_name='shop/staff/logout.html',
@@ -21,6 +21,11 @@ urlpatterns = [
     path('manage/products/', views.custom_product_list_view, name='custom_product_list'),
     path('manage/add-product/', views.custom_product_add_view, name='custom_product_add'),
     path('manage/edit-product/<slug:slug>/', views.custom_product_edit_view, name='custom_product_edit'),
+    
+    # Order management URLs (staff only)
+    path('manage/orders/', views.manage_orders, name='manage_orders'),
+    path('manage/orders/<int:order_id>/', views.order_detail, name='order_detail'),
+    path('manage/orders/<int:order_id>/update-status/', views.update_order_status, name='update_order_status'),
     
     # Public URLs
     path('product/<slug:slug>/', views.product_detail, name='product_detail'),

@@ -746,3 +746,14 @@ class Cart:
         except Exception as e:
             print(f"Error calculating cart length: {e}")
             return 0
+        
+
+
+
+
+
+
+
+
+
+

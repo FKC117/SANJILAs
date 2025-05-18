@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.admin.views.decorators import staff_member_required
 from django.urls import reverse
 from django.contrib import messages
@@ -14,6 +14,7 @@ from django.db.models import Q, Case, When, IntegerField
 import json
 
 from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory, SiteSettings, AboutUs, Contact
+from order.models import Order
 from .forms import ProductCreateForm, ProductEditForm, ProductImageFormSet
 
 # Create a context processor to make categories available in all templates
@@ -114,10 +115,20 @@ def custom_product_edit_view(request, slug):
 
 @staff_member_required
 def custom_product_list_view(request):
+    print('User:', request.user, 'is_staff:', request.user.is_staff, 'is_authenticated:', request.user.is_authenticated)
     products = Product.objects.all().order_by('-created_at')
+    
+    # Get order counts
+    pending_orders_count = Order.objects.filter(status='pending').count()
+    processing_orders_count = Order.objects.filter(status='processing').count()
+    delivered_orders_count = Order.objects.filter(status='delivered').count()
+    
     context = {
         'products': products,
         'title': 'Manage Products',
+        'pending_orders_count': pending_orders_count,
+        'processing_orders_count': processing_orders_count,
+        'delivered_orders_count': delivered_orders_count,
     }
     return render(request, 'shop/custom_product_list.html', context)
 
@@ -453,3 +464,73 @@ def contact(request):
         'footer_links': get_footer_links(),
     }
     return render(request, 'shop/contact.html', context)
+
+@staff_member_required
+def manage_orders(request):
+    print('User:', request.user, 'is_staff:', request.user.is_staff, 'is_authenticated:', request.user.is_authenticated)
+    try:
+        # Get filter parameters
+        status = request.GET.get('status')
+        date = request.GET.get('date')
+        search = request.GET.get('search')
+
+        # Start with all orders
+        orders = Order.objects.all().order_by('-order_date')
+
+        # Apply filters
+        if status:
+            orders = orders.filter(status=status)
+        if date:
+            orders = orders.filter(order_date__date=date)
+        if search:
+            orders = orders.filter(
+                Q(customer_name__icontains=search) |
+                Q(customer_email__icontains=search) |
+                Q(customer_phone__icontains=search)
+            )
+
+        context = {
+            'orders': orders,
+            'nav_links': get_navigation_links(),
+            'footer_links': get_footer_links(),
+            'site_settings': SiteSettings.get_settings(),
+        }
+        return render(request, 'shop/manage_orders.html', context)
+    except Exception as e:
+        print('Error in manage_orders:', e)
+        messages.error(request, f'Error loading orders: {str(e)}')
+        return redirect('index')
+
+@staff_member_required
+def update_order_status(request, order_id):
+    if request.method == 'POST':
+        try:
+            order = Order.objects.get(id=order_id)
+            new_status = request.POST.get('status')
+            if new_status in dict(Order.STATUS_CHOICES):
+                order.status = new_status
+                order.save()
+                messages.success(request, f'Order #{order.order_number} status updated to {order.get_status_display()}')
+            else:
+                messages.error(request, 'Invalid status selected')
+        except Order.DoesNotExist:
+            messages.error(request, 'Order not found')
+        except Exception as e:
+            messages.error(request, f'Error updating order status: {str(e)}')
+    
+    return redirect('manage_orders')
+
+@staff_member_required
+def order_detail(request, order_id):
+    try:
+        order = Order.objects.get(id=order_id)
+        context = {
+            'order': order,
+            'nav_links': get_navigation_links(),
+            'footer_links': get_footer_links(),
+            'site_settings': SiteSettings.get_settings(),
+        }
+        return render(request, 'shop/order_detail.html', context)
+    except Order.DoesNotExist:
+        messages.error(request, 'Order not found')
+        return redirect('manage_orders')

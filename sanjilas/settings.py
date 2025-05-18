@@ -176,3 +176,6 @@ SUMMERNOTE_THEME = 'bs5'  # Options: 'bs3', 'bs4', 'bs5', 'lite'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Login URL for staff members
+LOGIN_URL = '/shop/staff/login/'
