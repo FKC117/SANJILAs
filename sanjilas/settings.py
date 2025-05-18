@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'shop',
     'order',
+    'shipping',
     'django_summernote', # We will use SummernoteTextField() instead of TextField or charfield
     'import_export',
     'django_bootstrap5',

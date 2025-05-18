@@ -118,3 +118,5 @@ class StockMovement(models.Model):
 
     def __str__(self):
         return f"{self.get_type_display()} of {self.quantity} for {self.product.name} at {self.created_at}"
+
+
