@@ -358,47 +358,11 @@
         margin: 0;
     }
 
-    .search-section {
-        background: white;
-        border-radius: 1rem;
-        padding: 1.5rem;
-        box-shadow: var(--card-shadow);
-        margin-bottom: 2rem;
-    }
-
-    .search-form {
-        display: flex;
-        gap: 1rem;
-    }
-
-    .search-input {
-        flex: 1;
-        padding: 0.75rem 1.25rem;
-        border: 2px solid var(--border-color);
-        border-radius: 0.75rem;
-        font-size: 1rem;
-        transition: all 0.3s ease;
-    }
-
-    .search-input:focus {
-        outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
-    }
-
+    .search-section,
+    .search-form,
+    .search-input,
     .search-btn {
-        background: var(--primary-color);
-        color: white;
-        padding: 0.75rem 1.5rem;
-        border: none;
-        border-radius: 0.75rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-
-    .search-btn:hover {
-        background: var(--primary-hover);
-        transform: translateY(-2px);
+        display: none;
     }
 
     .stat-card a {
@@ -530,16 +494,6 @@
                             </a>
                         </div>
                     </div>
-                </div>
-
-                <!-- Search Section -->
-                <div class="search-section animate__animated animate__fadeIn">
-                    <form method="get" class="search-form">
-                        <input type="text" name="search" class="search-input" placeholder="Search products by name, category, or status..." value="{{ request.GET.search }}">
-                        <button type="submit" class="search-btn">
-                            <i class="fas fa-search"></i> Search
-                        </button>
-                    </form>
                 </div>
 
                 {% if messages %}
