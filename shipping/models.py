@@ -27,8 +27,8 @@ class PathaoToken(models.Model):
     Stores the current active Pathao API access and refresh tokens.
     Only one instance of this model should exist per set of credentials/merchant.
     """
-    access_token = models.CharField(max_length=512)
-    refresh_token = models.CharField(max_length=512, null=True, blank=True)
+    access_token = models.TextField()
+    refresh_token = models.TextField(null=True, blank=True)
     expires_at = models.DateTimeField(help_text="When the access token expires (timezone aware)")
 
     class Meta:

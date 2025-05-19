@@ -180,3 +180,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Login URL for staff members
 LOGIN_URL = '/shop/staff/login/'
+
+# Pathao API Base URLs
+PATHAO_COURIER_SANDBOX_BASE_URL = "https://courier-api-sandbox.pathao.com"
+PATHAO_COURIER_PRODUCTION_BASE_URL = "https://api-hermes.pathao.com"

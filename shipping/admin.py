@@ -7,8 +7,14 @@ from .models import (
 @admin.register(PathaoCredentials)
 class PathaoCredentialsAdmin(admin.ModelAdmin):
     list_display = ['client_id', 'default_username']
-    readonly_fields = ['client_id', 'client_secret', 'default_username', 'default_password',
-                      'test_client_id', 'test_client_secret', 'test_username', 'test_password']
+    fieldsets = (
+        ('Production Credentials', {
+            'fields': ('client_id', 'client_secret', 'default_username', 'default_password')
+        }),
+        ('Test Credentials', {
+            'fields': ('test_client_id', 'test_client_secret', 'test_username', 'test_password')
+        }),
+    )
 
 @admin.register(PathaoToken)
 class PathaoTokenAdmin(admin.ModelAdmin):
@@ -18,7 +24,7 @@ class PathaoTokenAdmin(admin.ModelAdmin):
 
 @admin.register(PathaoStore)
 class PathaoStoreAdmin(admin.ModelAdmin):
-    list_display = ['store_name', 'store_id', 'city_id', 'zone_id', 'is_active', 'is_default_store']
+    list_display = ['id','store_name', 'store_id', 'city_id', 'zone_id', 'is_active', 'is_default_store']
     list_filter = ['is_active', 'is_default_store']
     search_fields = ['store_name', 'store_address']
 
