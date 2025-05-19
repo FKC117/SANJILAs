@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.utils.text import slugify
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.http import JsonResponse, HttpResponseNotAllowed
+from django.http import JsonResponse, HttpResponseNotAllowed, HttpResponseBadRequest
 from django.views.decorators.http import require_POST
 from django.db.models.signals import pre_save, post_save, pre_delete, post_delete
 from django.dispatch import receiver
@@ -491,42 +491,47 @@ def manage_orders(request):
     print('User:', request.user, 'is_staff:', request.user.is_staff, 'is_authenticated:', request.user.is_authenticated)
     try:
         # Get filter parameters
-        status = request.GET.get('status')
-        date = request.GET.get('date')
-        search = request.GET.get('search')
-        preorder = request.GET.get('preorder')
-        stock_status = request.GET.get('stock_status')
+        status = request.GET.get('status', '')
+        date = request.GET.get('date', '')
+        search = request.GET.get('search', '')
+        stock_status = request.GET.get('stock_status', '')
 
         # Start with all orders
         orders = Order.objects.all().order_by('-order_date')
 
-        # Apply filters
+        # Apply filters only if they have values
         if status:
             orders = orders.filter(status=status)
         if date:
             orders = orders.filter(order_date__date=date)
-        if search:
+        if search and search != 'None':  # Only apply search if it's not empty or 'None'
             orders = orders.filter(
                 Q(customer_name__icontains=search) |
                 Q(customer_email__icontains=search) |
                 Q(customer_phone__icontains=search)
             )
-        if preorder == 'true':
-            orders = orders.filter(items__is_preorder=True).distinct()
         
         # Apply stock status filter
         if stock_status:
             if stock_status == 'in_stock':
+                # Orders where any item has stock > 10
                 orders = orders.filter(items__product__stock__gt=10).distinct()
             elif stock_status == 'low_stock':
+                # Orders where any item has stock between 1 and 10
                 orders = orders.filter(
                     items__product__stock__gt=0,
                     items__product__stock__lte=10
                 ).distinct()
             elif stock_status == 'out_of_stock':
+                # Orders where any item has stock = 0
                 orders = orders.filter(items__product__stock=0).distinct()
             elif stock_status == 'preorder':
+                # Orders where any item is a preorder
                 orders = orders.filter(items__is_preorder=True).distinct()
+
+        # Print debug information
+        print(f"Filters applied: status={status}, date={date}, search={search}, stock_status={stock_status}")
+        print(f"Number of orders after filtering: {orders.count()}")
 
         context = {
             'orders': orders,
@@ -536,8 +541,7 @@ def manage_orders(request):
             'current_filters': {
                 'status': status,
                 'date': date,
-                'search': search,
-                'preorder': preorder,
+                'search': search if search != 'None' else '',  # Convert 'None' to empty string
                 'stock_status': stock_status,
             }
         }
@@ -659,3 +663,49 @@ def stock_management_view(request):
         'preorder_count': preorder_count,
     }
     return render(request, 'shop/stock_management.html', context)
+
+@staff_member_required
+@require_POST
+def cancel_order(request, order_id):
+    """Cancel an order and restore stock."""
+    try:
+        order = get_object_or_404(Order, id=order_id)
+        
+        # Check if order can be cancelled
+        if order.status in ['cancelled', 'delivered']:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Cannot cancel order that is {order.status}'
+            }, status=400)
+        
+        with transaction.atomic():
+            # Restore stock for each item
+            for item in order.items.all():
+                if not item.is_preorder:  # Only restore stock for non-preorder items
+                    product = item.product
+                    product.stock += item.quantity
+                    product.save()
+                    
+                    # Record stock movement
+                    StockMovement.objects.create(
+                        product=product,
+                        quantity=item.quantity,
+                        movement_type='restore',
+                        reference=f'Order #{order.id} cancelled',
+                        notes=f'Stock restored due to order cancellation'
+                    )
+            
+            # Update order status
+            order.status = 'cancelled'
+            order.save()
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Order cancelled successfully'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)

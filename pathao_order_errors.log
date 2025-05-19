@@ -22,3 +22,27 @@ Order Data: {"store_id": 25229, "merchant_order_id": "ORDER_8", "recipient_name"
 Error: 422 Client Error: Unprocessable Entity for url: https://api-hermes.pathao.com/aladdin/api/v1/orders
 Response: {"message":"Please fix the given errors","type":"error","code":422,"errors":{"recipient_address":["The recipient address must be at least 10 characters."]}}
 ---
+
+---
+Order Data: {"store_id": 25229, "merchant_order_id": "ORDER_10", "recipient_name": "API test", "recipient_phone": "01911269258", "recipient_address": "aasas", "recipient_city": 1, "recipient_zone": 298, "recipient_area": 3069, "delivery_type": 48, "item_type": 2, "special_instruction": "", "item_quantity": 1, "item_weight": 0.5, "item_description": "Negative x 1", "amount_to_collect": 2575.0, "item_price": 2575.0, "payment_type": 1}
+Error: 422 Client Error: Unprocessable Entity for url: https://api-hermes.pathao.com/aladdin/api/v1/orders
+Response: {"message":"Please fix the given errors","type":"error","code":422,"errors":{"recipient_address":["The recipient address must be at least 10 characters."]}}
+---
+
+---
+Order Data: {"store_id": 25229, "merchant_order_id": "10", "recipient_name": "API test", "recipient_phone": "01911269258", "recipient_address": "aasasdfdfdf dfdfdf ssdsf", "recipient_city": "1", "recipient_zone": "298", "recipient_area": "3069", "delivery_type": 48, "item_type": 2, "special_instruction": "", "item_quantity": 1, "item_weight": 0.5, "item_description": "Order #10", "amount_to_collect": 2575.0, "payment_type": 1}
+Error: 401 Client Error: Unauthorized for url: https://courier-api-sandbox.pathao.com/aladdin/api/v1/orders
+Response: {"message":"Unauthorized","type":"error","code":401}
+---
+
+---
+Order Data: {"store_id": 25229, "merchant_order_id": "9", "recipient_name": "API test", "recipient_phone": "01911269258", "recipient_address": "Test Address", "recipient_city": "1", "recipient_zone": "50", "recipient_area": "673", "delivery_type": 48, "item_type": 2, "special_instruction": "", "item_quantity": 1, "item_weight": 0.5, "item_description": "Order #9", "amount_to_collect": 2675.0, "payment_type": 1}
+Error: 401 Client Error: Unauthorized for url: https://courier-api-sandbox.pathao.com/aladdin/api/v1/orders
+Response: {"message":"Unauthorized","type":"error","code":401}
+---
+
+---
+Order Data: {"store_id": 25229, "merchant_order_id": "10", "recipient_name": "API test", "recipient_phone": "01911269258", "recipient_address": "aasasdfdfdf dfdfdf ssdsf", "recipient_city": "1", "recipient_zone": "298", "recipient_area": "3069", "delivery_type": 48, "item_type": 2, "special_instruction": "", "item_quantity": 1, "item_weight": 0.5, "item_description": "Order #10", "amount_to_collect": 2575.0, "payment_type": 1}
+Error: 401 Client Error: Unauthorized for url: https://courier-api-sandbox.pathao.com/aladdin/api/v1/orders
+Response: {"message":"Unauthorized","type":"error","code":401}
+---

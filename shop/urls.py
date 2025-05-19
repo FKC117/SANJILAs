@@ -27,6 +27,7 @@ urlpatterns = [
     path('manage/orders/', views.manage_orders, name='manage_orders'),
     path('manage/orders/<int:order_id>/', views.order_detail, name='order_detail'),
     path('manage/orders/<int:order_id>/update-status/', views.update_order_status, name='update_order_status'),
+    path('manage/orders/<int:order_id>/cancel/', views.cancel_order, name='cancel_order'),
     
     # Public URLs
     path('product/<slug:slug>/', views.product_detail, name='product_detail'),
