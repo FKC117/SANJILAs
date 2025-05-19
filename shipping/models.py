@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
+from order.models import Order
 
 class PathaoCredentials(models.Model):
     """
@@ -107,6 +108,7 @@ class PathaoOrder(models.Model):
     """
     Stores details of orders placed through Pathao Courier.
     """
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='pathao_orders', null=True, blank=True)
     consignment_id = models.CharField(max_length=100, unique=True, null=True, blank=True, help_text="Unique ID from Pathao for the consignment")
     merchant_order_id = models.CharField(max_length=100, help_text="Your internal order ID sent to Pathao")
     store = models.ForeignKey(PathaoStore, on_delete=models.SET_NULL, null=True, blank=True)

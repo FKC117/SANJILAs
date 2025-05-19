@@ -565,7 +565,7 @@ def get_default_store():
         logging.error("No default store set. Please set a default store first.")
         return None
 
-def create_order(order_data, is_test=True):
+def create_order(order_data, is_test=True, order_instance=None):
     """
     Creates a new order using the Pathao API.
     Requires a dictionary containing the order details.
@@ -611,6 +611,7 @@ def create_order(order_data, is_test=True):
                 logging.error(f"No PathaoStore found with store_id={order_data.get('store_id')}")
                 store_obj = None
             PathaoOrder.objects.create(
+                order=order_instance,  # Link to main order if provided
                 consignment_id=order_info.get('consignment_id'),
                 merchant_order_id=order_data.get('merchant_order_id'),
                 store=store_obj,  # Use the actual model instance
