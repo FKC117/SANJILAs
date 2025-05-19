@@ -588,15 +588,12 @@ def create_order(order_data, is_test=True, order_instance=None):
     }
 
     try:
-        logging.debug(f"\nCreate Order Request:")
-        logging.debug(f"URL: {create_order_url}")
-        logging.debug(f"Headers: {json.dumps(headers, indent=2)}")
-        logging.debug(f"Order Data: {json.dumps(order_data, indent=2)}")
+        logging.info("=== Starting Pathao Order Creation ===")
+        logging.info(f"Order Data being sent to Pathao API: {json.dumps(order_data, indent=2)}")
         
         response = requests.post(create_order_url, headers=headers, json=order_data)
-        logging.debug(f"\nCreate Order Response:")
-        logging.debug(f"Status Code: {response.status_code}")
-        logging.debug(f"Response: {response.text}")
+        logging.info(f"Pathao API Response Status: {response.status_code}")
+        logging.info(f"Pathao API Response: {response.text}")
         
         response.raise_for_status()
         data = response.json()
@@ -604,13 +601,46 @@ def create_order(order_data, is_test=True, order_instance=None):
         # Store order in database
         if data.get('type') == 'success':
             order_info = data.get('data', {})
+            logging.info("=== Creating PathaoOrder Record ===")
+            logging.info(f"Order Info from Pathao: {json.dumps(order_info, indent=2)}")
+            
             # Find the internal store object by Pathao store_id
             try:
                 store_obj = PathaoStore.objects.get(store_id=order_data.get('store_id'))
+                logging.info(f"Found store: {store_obj.store_name} (ID: {store_obj.store_id})")
             except PathaoStore.DoesNotExist:
                 logging.error(f"No PathaoStore found with store_id={order_data.get('store_id')}")
                 store_obj = None
-            PathaoOrder.objects.create(
+
+            # Log the city, zone, and area IDs we're about to store
+            logging.info(f"City ID from order_data: {order_data.get('recipient_city')}")
+            logging.info(f"Zone ID from order_data: {order_data.get('recipient_zone')}")
+            logging.info(f"Area ID from order_data: {order_data.get('recipient_area')}")
+
+            # Look up the actual model instances for city, zone, and area
+            try:
+                city_obj = PathaoCity.objects.get(city_id=order_data.get('recipient_city'))
+                logging.info(f"Found city: {city_obj.city_name} (ID: {city_obj.city_id})")
+            except PathaoCity.DoesNotExist:
+                logging.error(f"No PathaoCity found with city_id={order_data.get('recipient_city')}")
+                city_obj = None
+
+            try:
+                zone_obj = PathaoZone.objects.get(zone_id=order_data.get('recipient_zone'))
+                logging.info(f"Found zone: {zone_obj.zone_name} (ID: {zone_obj.zone_id})")
+            except PathaoZone.DoesNotExist:
+                logging.error(f"No PathaoZone found with zone_id={order_data.get('recipient_zone')}")
+                zone_obj = None
+
+            try:
+                area_obj = PathaoArea.objects.get(area_id=order_data.get('recipient_area'))
+                logging.info(f"Found area: {area_obj.area_name} (ID: {area_obj.area_id})")
+            except PathaoArea.DoesNotExist:
+                logging.error(f"No PathaoArea found with area_id={order_data.get('recipient_area')}")
+                area_obj = None
+
+            # Create the PathaoOrder record with the actual model instances
+            pathao_order = PathaoOrder.objects.create(
                 order=order_instance,  # Link to main order if provided
                 consignment_id=order_info.get('consignment_id'),
                 merchant_order_id=order_data.get('merchant_order_id'),
@@ -618,9 +648,9 @@ def create_order(order_data, is_test=True, order_instance=None):
                 recipient_name=order_data.get('recipient_name'),
                 recipient_phone=order_data.get('recipient_phone'),
                 recipient_address=order_data.get('recipient_address'),
-                recipient_city_id=order_data.get('recipient_city'),
-                recipient_zone_id=order_data.get('recipient_zone'),
-                recipient_area_id=order_data.get('recipient_area'),
+                recipient_city=city_obj,  # Use the actual model instance
+                recipient_zone=zone_obj,  # Use the actual model instance
+                recipient_area=area_obj,  # Use the actual model instance
                 delivery_type=order_data.get('delivery_type'),
                 item_type=order_data.get('item_type'),
                 special_instruction=order_data.get('special_instruction'),
@@ -632,6 +662,22 @@ def create_order(order_data, is_test=True, order_instance=None):
                 order_status_slug=order_info.get('order_status', 'Pending').lower(),
                 calculated_price=order_info.get('delivery_fee')
             )
+            
+            # Log the created PathaoOrder record
+            logging.info("=== Created PathaoOrder Record ===")
+            logging.info(f"PathaoOrder ID: {pathao_order.id}")
+            logging.info(f"Consignment ID: {pathao_order.consignment_id}")
+            logging.info(f"Recipient City ID: {pathao_order.recipient_city_id}")
+            logging.info(f"Recipient Zone ID: {pathao_order.recipient_zone_id}")
+            logging.info(f"Recipient Area ID: {pathao_order.recipient_area_id}")
+            
+            # Verify the relationships
+            if pathao_order.recipient_city:
+                logging.info(f"Recipient City Name: {pathao_order.recipient_city.city_name}")
+            if pathao_order.recipient_zone:
+                logging.info(f"Recipient Zone Name: {pathao_order.recipient_zone.zone_name}")
+            if pathao_order.recipient_area:
+                logging.info(f"Recipient Area Name: {pathao_order.recipient_area.area_name}")
         
         return data
     except requests.exceptions.RequestException as e:

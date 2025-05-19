@@ -7,14 +7,15 @@
 {% block extra_js %}
 {% if meta_pixel_data %}
 <script>
-    fbq('track', 'Purchase', {
-        content_type: '{{ meta_pixel_data.content_type }}',
-        content_ids: {{ meta_pixel_data.content_ids|safe }},
-        content_name: {{ meta_pixel_data.content_name|safe }},
-        value: {{ meta_pixel_data.value }},
-        currency: '{{ meta_pixel_data.currency }}',
-        num_items: {{ meta_pixel_data.num_items }}
-    });
+  /* eslint-disable */
+  fbq('track', 'Purchase', {
+    content_type: "{{ meta_pixel_data.content_type }}",
+    content_ids: JSON.parse('{{ meta_pixel_data.content_ids|escapejs }}'),
+    content_name: "{{ meta_pixel_data.content_name|escapejs }}",
+    value: Number("{{ meta_pixel_data.value }}"),
+    currency: "{{ meta_pixel_data.currency }}",
+    num_items: Number("{{ meta_pixel_data.num_items }}")
+  });
 </script>
 {% endif %}
 {% endblock %}
@@ -70,7 +71,7 @@
                         <div class="col-12">
                             <h5 class="mb-3">Delivery Address</h5>
                             <p class="mb-1">{{ order.shipping_address }}</p>
-                            <p class="mb-1">{{ order.area }}, {{ order.zone }}, {{ order.city }}</p>
+                            <p class="mb-1">{{ order.area_name }}, {{ order.zone_name }}, {{ order.city_name }}</p>
                         </div>
                     </div>
                     

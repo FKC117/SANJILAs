@@ -62,9 +62,12 @@ class Order(models.Model):
     customer_phone = models.CharField(max_length=20)
     customer_email = models.EmailField(blank=True, null=True)
     shipping_address = models.TextField()
-    city = models.CharField(max_length=50)
-    zone = models.CharField(max_length=50, blank=True, null=True)
-    area = models.CharField(max_length=100, blank=True, null=True)
+    city = models.CharField(max_length=50)  # Will store city_id
+    zone = models.CharField(max_length=50, blank=True, null=True)  # Will store zone_id
+    area = models.CharField(max_length=100, blank=True, null=True)  # Will store area_id
+    city_name = models.CharField(max_length=100)  # For display purposes
+    zone_name = models.CharField(max_length=100, blank=True, null=True)  # For display purposes
+    area_name = models.CharField(max_length=100, blank=True, null=True)  # For display purposes
     shipping_location = models.CharField(max_length=50, choices=[
         ('inside_dhaka', 'Inside Dhaka'),
         ('outside_dhaka', 'Outside Dhaka')
@@ -76,6 +79,7 @@ class Order(models.Model):
     payment_method = models.CharField(max_length=50, default='cash_on_delivery')
     payment_status = models.CharField(max_length=20, default='pending')
     order_notes = models.TextField(blank=True, null=True)
+
     def __str__(self):
         return f"Order #{self.id} - {self.customer_name}"
 

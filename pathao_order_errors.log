@@ -16,3 +16,9 @@ Order Data: {"store_id": 25229, "merchant_order_id": "ORDER_1747634351", "recipi
 Error: 401 Client Error: Unauthorized for url: https://api-hermes.pathao.com/aladdin/api/v1/orders
 Response: {"message":"Unauthorized","type":"error","code":401}
 ---
+
+---
+Order Data: {"store_id": 25229, "merchant_order_id": "ORDER_8", "recipient_name": "Pritha Islam", "recipient_phone": "01637696295", "recipient_address": "House ", "recipient_city": 1, "recipient_zone": 50, "recipient_area": 673, "delivery_type": 48, "item_type": 2, "special_instruction": "", "item_quantity": 1, "item_weight": 0.5, "item_description": "bangles-katai 01 x 1", "amount_to_collect": 5775.0, "item_price": 5775.0, "payment_type": 1}
+Error: 422 Client Error: Unprocessable Entity for url: https://api-hermes.pathao.com/aladdin/api/v1/orders
+Response: {"message":"Please fix the given errors","type":"error","code":422,"errors":{"recipient_address":["The recipient address must be at least 10 characters."]}}
+---

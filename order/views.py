@@ -404,9 +404,12 @@ def checkout_view(request):
             customer_phone=customer_phone,
             customer_email=customer_email,
             shipping_address=shipping_address,
-            city=city.city_name,
-            zone=zone.zone_name,
-            area=area.area_name if area else None,
+            city=city.city_id,  # Store ID
+            zone=zone.zone_id,  # Store ID
+            area=area.area_id if area else None,  # Store ID
+            city_name=city.city_name,  # Store name for display
+            zone_name=zone.zone_name,  # Store name for display
+            area_name=area.area_name if area else None,  # Store name for display
             shipping_location=current_shipping_location,
             shipping_cost=current_shipping_cost,
             total_amount=total_amount,
