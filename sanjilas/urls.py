@@ -12,6 +12,7 @@ from django.contrib.auth.forms import AuthenticationForm
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/', include('accounts.urls')),
     path('', shop_views.index, name='index'),  # Root URL goes to the shop index
     path('shop/', include('shop.urls')),
     path('order/', include('order.urls')),

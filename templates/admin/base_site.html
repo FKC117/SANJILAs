@@ -1,0 +1,46 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+<style>
+    #header {
+        background: #2c3e50;
+        color: #fff;
+    }
+    #branding h1 {
+        color: #fff;
+    }
+    .dashboard-link {
+        float: right;
+        margin: 15px 20px;
+        padding: 8px 15px;
+        background: #27ae60;
+        color: white;
+        border-radius: 4px;
+        text-decoration: none;
+        font-weight: bold;
+    }
+    .dashboard-link:hover {
+        background: #219a52;
+        color: white;
+        text-decoration: none;
+    }
+</style>
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a>
+</h1>
+{% if user.is_superuser %}
+<a href="{% url 'accounts:dashboard' %}" class="dashboard-link">
+    <i class="fas fa-chart-line"></i> Dashboard
+</a>
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %} 

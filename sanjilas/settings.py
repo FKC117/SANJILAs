@@ -40,9 +40,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.humanize',
     'shop',
     'order',
     'shipping',
+    'accounts',
     'django_summernote', # We will use SummernoteTextField() instead of TextField or charfield
     'import_export',
     'django_bootstrap5',
