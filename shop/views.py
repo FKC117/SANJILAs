@@ -499,6 +499,23 @@ def manage_orders(request):
         # Start with all orders
         orders = Order.objects.all().order_by('-order_date')
 
+        # Get order statistics
+        total_orders = orders.count()
+        pending_orders = orders.filter(status='pending').count()
+        processing_orders = orders.filter(status='processing').count()
+        shipped_orders = orders.filter(status='shipped').count()
+        delivered_orders = orders.filter(status='delivered').count()
+        cancelled_orders = orders.filter(status='cancelled').count()
+        
+        # Get stock status statistics
+        in_stock_orders = orders.filter(items__product__stock__gt=10).distinct().count()
+        low_stock_orders = orders.filter(
+            items__product__stock__gt=0,
+            items__product__stock__lte=10
+        ).distinct().count()
+        out_of_stock_orders = orders.filter(items__product__stock=0).distinct().count()
+        preorder_orders = orders.filter(items__is_preorder=True).distinct().count()
+
         # Apply filters only if they have values
         if status:
             orders = orders.filter(status=status)
@@ -543,6 +560,23 @@ def manage_orders(request):
                 'date': date,
                 'search': search if search != 'None' else '',  # Convert 'None' to empty string
                 'stock_status': stock_status,
+            },
+            # Add statistics to context
+            'stats': {
+                'total_orders': total_orders,
+                'status_counts': {
+                    'pending': pending_orders,
+                    'processing': processing_orders,
+                    'shipped': shipped_orders,
+                    'delivered': delivered_orders,
+                    'cancelled': cancelled_orders,
+                },
+                'stock_counts': {
+                    'in_stock': in_stock_orders,
+                    'low_stock': low_stock_orders,
+                    'out_of_stock': out_of_stock_orders,
+                    'preorder': preorder_orders,
+                }
             }
         }
         return render(request, 'shop/manage_orders.html', context)

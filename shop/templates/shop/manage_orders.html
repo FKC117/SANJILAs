@@ -420,6 +420,111 @@
         display: none;
         margin-bottom: 2rem;
     }
+
+    /* Statistics Section Styles */
+    .stats-section {
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        border-radius: 1rem;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--card-shadow);
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        font-size: 2rem;
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-content h3 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin: 0;
+        line-height: 1.2;
+    }
+
+    .stat-content p {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: 0.9;
+    }
+
+    /* Background colors for different statuses */
+    .bg-primary { background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%); }
+    .bg-success { background: linear-gradient(135deg, var(--success-color) 0%, #047857 100%); }
+    .bg-warning { background: linear-gradient(135deg, var(--warning-color) 0%, #b45309 100%); }
+    .bg-danger { background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%); }
+    .bg-info { background: linear-gradient(135deg, var(--info-color) 0%, #0369a1 100%); }
+
+    @media (max-width: 768px) {
+        .stat-card {
+            padding: 1rem;
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+            width: 50px;
+            height: 50px;
+        }
+
+        .stat-content h3 {
+            font-size: 1.5rem;
+        }
+
+        .stat-content p {
+            font-size: 0.8rem;
+        }
+    }
+
+    .stat-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    a:hover .stat-card {
+        opacity: 0.95;
+    }
+
+    /* Add a subtle indicator that the cards are clickable */
+    .stat-card::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.2);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover::after {
+        transform: scaleX(1);
+    }
 </style>
 {% endblock %}
 
@@ -439,6 +544,129 @@
                         <a href="{% url 'custom_product_list' %}" class="btn-manage-products">
                             <i class="fas fa-box"></i> Manage Products
                         </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Section -->
+            <div class="stats-section animate__animated animate__fadeIn mb-4">
+                <div class="row g-3">
+                    <!-- Total Orders -->
+                    <div class="col-md-3">
+                        <a href="{% url 'manage_orders' %}" class="text-decoration-none">
+                            <div class="stat-card bg-primary text-white">
+                                <div class="stat-icon">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </div>
+                                <div class="stat-content">
+                                    <h3>{{ stats.total_orders }}</h3>
+                                    <p>Total Orders</p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <!-- Order Status Stats -->
+                    <div class="col-md-9">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <a href="{% url 'manage_orders' %}?status=pending" class="text-decoration-none">
+                                    <div class="stat-card bg-warning text-dark">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-clock"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <h3>{{ stats.status_counts.pending }}</h3>
+                                            <p>Pending Orders</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{% url 'manage_orders' %}?status=processing" class="text-decoration-none">
+                                    <div class="stat-card bg-info text-white">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-cog"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <h3>{{ stats.status_counts.processing }}</h3>
+                                            <p>Processing Orders</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-4">
+                                <a href="{% url 'manage_orders' %}?status=delivered" class="text-decoration-none">
+                                    <div class="stat-card bg-success text-white">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-check-circle"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <h3>{{ stats.status_counts.delivered }}</h3>
+                                            <p>Delivered Orders</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stock Status Stats -->
+                    <div class="col-12">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <a href="{% url 'manage_orders' %}?stock_status=in_stock" class="text-decoration-none">
+                                    <div class="stat-card bg-success text-white">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-box"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <h3>{{ stats.stock_counts.in_stock }}</h3>
+                                            <p>In Stock Orders</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{% url 'manage_orders' %}?stock_status=low_stock" class="text-decoration-none">
+                                    <div class="stat-card bg-warning text-dark">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <h3>{{ stats.stock_counts.low_stock }}</h3>
+                                            <p>Low Stock Orders</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{% url 'manage_orders' %}?stock_status=out_of_stock" class="text-decoration-none">
+                                    <div class="stat-card bg-danger text-white">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-times-circle"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <h3>{{ stats.stock_counts.out_of_stock }}</h3>
+                                            <p>Out of Stock Orders</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{% url 'manage_orders' %}?stock_status=preorder" class="text-decoration-none">
+                                    <div class="stat-card bg-info text-white">
+                                        <div class="stat-icon">
+                                            <i class="fas fa-hourglass-half"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <h3>{{ stats.stock_counts.preorder }}</h3>
+                                            <p>Preorder Orders</p>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
