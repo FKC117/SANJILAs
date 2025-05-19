@@ -3,6 +3,7 @@ from django.http import JsonResponse
 from shop.models import Product
 from django.contrib import messages
 from .models import Order, OrderItem, ShippingRate
+from shipping.models import PathaoCity, PathaoZone, PathaoArea
 import json
 from decimal import Decimal  # Add this import at the top
 from django.db.models import Q, Case, When, IntegerField
@@ -317,7 +318,7 @@ def checkout_view(request):
         new_shipping_location = request.POST.get('shipping_location')
         request.session['shipping_location'] = new_shipping_location
 
-        cart_total_price = Decimal(str(cart.get_total_price()))  # Convert to Decimal
+        cart_total_price = Decimal(str(cart.get_total_price()))
         
         try:
             shipping_cost = Decimal(str(ShippingRate.get_rate(new_shipping_location)))
@@ -329,9 +330,41 @@ def checkout_view(request):
 
         return JsonResponse({
             'success': True,
-            'shipping_cost': float(shipping_cost),  # Convert back to float for JSON
+            'shipping_cost': float(shipping_cost),
             'total': float(total)
         })
+
+    # AJAX: Handle zone fetch
+    if request.method == 'POST' and 'city_id' in request.POST and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            city_id = request.POST.get('city_id')
+            zones = PathaoZone.objects.filter(city__city_id=city_id).values('zone_id', 'zone_name')
+            return JsonResponse({
+                'success': True,
+                'zones': list(zones)
+            })
+        except Exception as e:
+            print(f"Error fetching zones: {e}")
+            return JsonResponse({
+                'success': False,
+                'message': 'Failed to fetch zones'
+            })
+
+    # AJAX: Handle area fetch
+    if request.method == 'POST' and 'zone_id' in request.POST and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            zone_id = request.POST.get('zone_id')
+            areas = PathaoArea.objects.filter(zone__zone_id=zone_id).values('area_id', 'area_name')
+            return JsonResponse({
+                'success': True,
+                'areas': list(areas)
+            })
+        except Exception as e:
+            print(f"Error fetching areas: {e}")
+            return JsonResponse({
+                'success': False,
+                'message': 'Failed to fetch areas'
+            })
 
     # POST: Handle order placement
     if request.method == 'POST' and 'customer_name' in request.POST:
@@ -339,10 +372,22 @@ def checkout_view(request):
         customer_phone = request.POST.get('customer_phone')
         customer_email = request.POST.get('customer_email', '')
         shipping_address = request.POST.get('shipping_address')
-        city = request.POST.get('city')
-        zone = request.POST.get('zone')
-        area = request.POST.get('area', '')
+        city_id = request.POST.get('city')
+        zone_id = request.POST.get('zone')
+        area_id = request.POST.get('area')
         current_shipping_location = request.POST.get('shipping_location', shipping_location)
+        
+        # Get city, zone, and area objects from IDs
+        try:
+            city = PathaoCity.objects.get(city_id=city_id)
+            zone = PathaoZone.objects.get(zone_id=zone_id, city=city)
+            area = PathaoArea.objects.get(area_id=area_id, zone=zone) if area_id and area_id.strip() else None
+        except (PathaoCity.DoesNotExist, PathaoZone.DoesNotExist):
+            messages.error(request, 'Invalid city or zone selected.')
+            return redirect('checkout')
+        except PathaoArea.DoesNotExist:
+            messages.error(request, 'Invalid area selected.')
+            return redirect('checkout')
         
         # Calculate totals using Decimal
         order_subtotal = Decimal(str(cart.get_total_price()))
@@ -359,9 +404,9 @@ def checkout_view(request):
             customer_phone=customer_phone,
             customer_email=customer_email,
             shipping_address=shipping_address,
-            city=city,
-            zone=zone,
-            area=area,
+            city=city.city_name,
+            zone=zone.zone_name,
+            area=area.area_name if area else None,
             shipping_location=current_shipping_location,
             shipping_cost=current_shipping_cost,
             total_amount=total_amount,
@@ -401,7 +446,7 @@ def checkout_view(request):
             ]
         }
         
-        return redirect('order_success_generic')  # Redirect to generic success page
+        return redirect('order_success_generic')
 
     # GET: Display checkout page
     template_cart_items = []
@@ -441,6 +486,9 @@ def checkout_view(request):
         print(f"Error getting shipping rates for display options: {e}")
         inside_dhaka_rate = Decimal('75')
         outside_dhaka_rate = Decimal('125')
+    
+    # Get all cities for the dropdown
+    cities = PathaoCity.objects.all().values('city_id', 'city_name')
         
     context = {
         'cart_items': template_cart_items,
@@ -452,7 +500,8 @@ def checkout_view(request):
         'shipping_rates': {
             'inside_dhaka': inside_dhaka_rate,
             'outside_dhaka': outside_dhaka_rate,
-        }
+        },
+        'cities': cities
     }
     return render(request, 'shop/checkout.html', context)
 
