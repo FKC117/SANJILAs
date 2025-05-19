@@ -7,6 +7,7 @@ from shipping.models import PathaoCity, PathaoZone, PathaoArea
 import json
 from decimal import Decimal  # Add this import at the top
 from django.db.models import Q, Case, When, IntegerField
+from .models import StockMovement
 
 def cart_add(request):
     if request.method == 'POST':
@@ -427,6 +428,26 @@ def checkout_view(request):
                     unit_price=Decimal(str(product_instance.get_selling_price())),
                     is_preorder=product_instance.preorder
                 )
+
+                # Update stock if not a preorder
+                if not product_instance.preorder:
+                    # Update product stock
+                    product_instance.stock -= item['quantity']
+                    if product_instance.stock <= 0:
+                        product_instance.stock = 0
+                        # Only set available to False if not a preorder product
+                        if not product_instance.preorder:
+                            product_instance.available = False
+                    product_instance.save()
+
+                    # Create stock movement record
+                    StockMovement.objects.create(
+                        product=product_instance,
+                        quantity=-item['quantity'],  # Negative for stock out
+                        type='SALE',
+                        reason=f'Order #{order.id}'
+                    )
+
             except (KeyError, AttributeError, Exception) as e:
                 print(f"Error creating order item for product ID {item.get('product_id', 'N/A')}: {e}")
                 continue
@@ -798,7 +819,123 @@ class Cart:
         except Exception as e:
             print(f"Error calculating cart length: {e}")
             return 0
-        
+
+def create_order(request):
+    if request.method == 'POST':
+        try:
+            cart = Cart(request)
+            if not cart:
+                return JsonResponse({'success': False, 'message': 'Cart is empty'})
+
+            # Create the order
+            order = Order.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                # ... other order fields ...
+            )
+
+            # Process each item in the cart
+            for product_id, item in cart.cart.items():
+                try:
+                    product = Product.objects.get(id=product_id)
+                    quantity = item['quantity']
+                    is_preorder = item.get('is_preorder', False)
+
+                    # Create order item
+                    OrderItem.objects.create(
+                        order=order,
+                        product=product,
+                        quantity=quantity,
+                        unit_price=Decimal(item['price']),
+                        is_preorder=is_preorder
+                    )
+
+                    # Update stock if not a preorder
+                    if not is_preorder:
+                        # Update product stock
+                        product.stock -= quantity
+                        if product.stock <= 0:
+                            product.stock = 0
+                            # Only set available to False if not a preorder product
+                            if not product.preorder:
+                                product.available = False
+                        product.save()
+
+                        # Create stock movement record
+                        StockMovement.objects.create(
+                            product=product,
+                            quantity=-quantity,  # Negative for stock out
+                            type='SALE',
+                            reason=f'Order #{order.id}'
+                        )
+
+                except Product.DoesNotExist:
+                    # Handle case where product no longer exists
+                    continue
+
+            # Clear the cart
+            cart.clear()
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Order created successfully',
+                'order_id': order.id
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error creating order: {str(e)}'
+            })
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+def cancel_order(request, order_id):
+    if request.method == 'POST':
+        try:
+            order = Order.objects.get(id=order_id)
+            if order.status not in ['pending', 'processing']:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Only pending or processing orders can be cancelled'
+                })
+
+            # Update order status
+            order.status = 'cancelled'
+            order.save()
+
+            # Return items to stock if they were not preorders
+            for item in order.items.all():
+                if not item.is_preorder:
+                    product = item.product
+                    product.stock += item.quantity
+                    product.available = True  # Make product available again
+                    product.save()
+
+                    # Create stock movement record for return
+                    StockMovement.objects.create(
+                        product=product,
+                        quantity=item.quantity,  # Positive for stock in
+                        type='CANCELLED_ORDER',
+                        reason=f'Order #{order.id} cancelled'
+                    )
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Order cancelled successfully'
+            })
+
+        except Order.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'Order not found'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error cancelling order: {str(e)}'
+            })
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
 
 

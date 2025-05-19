@@ -21,6 +21,7 @@ urlpatterns = [
     path('manage/products/', views.custom_product_list_view, name='custom_product_list'),
     path('manage/add-product/', views.custom_product_add_view, name='custom_product_add'),
     path('manage/edit-product/<slug:slug>/', views.custom_product_edit_view, name='custom_product_edit'),
+    path('manage/stock/', views.stock_management_view, name='stock_management'),
     
     # Order management URLs (staff only)
     path('manage/orders/', views.manage_orders, name='manage_orders'),
@@ -42,6 +43,7 @@ urlpatterns = [
     
     # Subcategory URL
     path('manage/get-subcategories/', views.get_subcategories, name='get_subcategories'),
+    path('update-stock/<int:product_id>/', views.update_stock, name='update_stock'),
 ]
 
 if settings.DEBUG:

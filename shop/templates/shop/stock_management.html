@@ -1,0 +1,519 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Stock Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --primary-color: #4f46e5;
+        --primary-hover: #4338ca;
+        --secondary-color: #1e40af;
+        --success-color: #059669;
+        --danger-color: #dc2626;
+        --warning-color: #d97706;
+        --info-color: #0284c7;
+        --light-bg: #f8fafc;
+        --border-color: #e2e8f0;
+        --text-color: #1e293b;
+        --text-muted: #64748b;
+        --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .admin-header {
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        padding: 2rem;
+        border-radius: 1rem;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 2rem;
+        color: white;
+    }
+
+    .stock-summary {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: var(--card-shadow);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stock-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .stock-summary-card {
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        text-align: center;
+    }
+
+    .stock-summary-card.in-stock {
+        background: #ecfdf5;
+        color: var(--success-color);
+    }
+
+    .stock-summary-card.low-stock {
+        background: #fffbeb;
+        color: var(--warning-color);
+    }
+
+    .stock-summary-card.out-of-stock {
+        background: #fef2f2;
+        color: var(--danger-color);
+    }
+
+    .stock-summary-card.preorder {
+        background: #eff6ff;
+        color: var(--info-color);
+    }
+
+    .stock-summary-card .number {
+        font-size: 2.5rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .stock-summary-card .label {
+        font-size: 1rem;
+        color: inherit;
+    }
+
+    .stock-table {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: var(--card-shadow);
+        overflow: hidden;
+    }
+
+    .stock-table th {
+        background: var(--light-bg);
+        font-weight: 600;
+        color: var(--text-muted);
+        padding: 1rem;
+        white-space: nowrap;
+    }
+
+    .stock-table td {
+        padding: 1rem;
+        vertical-align: middle;
+    }
+
+    .stock-table tr:hover {
+        background: var(--light-bg);
+    }
+
+    .product-image {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 0.5rem;
+    }
+
+    .stock-input {
+        width: 100px;
+    }
+
+    .stock-status {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        text-align: center;
+        display: inline-block;
+    }
+
+    .stock-in {
+        background: #ecfdf5;
+        color: var(--success-color);
+    }
+
+    .stock-low {
+        background: #fffbeb;
+        color: var(--warning-color);
+    }
+
+    .stock-out {
+        background: #fef2f2;
+        color: var(--danger-color);
+    }
+
+    .search-box {
+        max-width: 300px;
+        margin-bottom: 1rem;
+    }
+
+    .filter-section {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: var(--card-shadow);
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .filter-section select {
+        max-width: 200px;
+    }
+
+    .btn-stock {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--info-color);
+        border-color: var(--info-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-12">
+            <!-- Page Header -->
+            <div class="admin-header animate__animated animate__fadeIn">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="mb-2">Stock Management</h1>
+                        <p class="mb-0">Manage your product inventory efficiently</p>
+                    </div>
+                    <div>
+                        <a href="{% url 'custom_product_list' %}" class="btn btn-light">
+                            <i class="fas fa-arrow-left"></i> Back to Products
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {% if messages %}
+            <div class="messages mb-4">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} animate__animated animate__fadeInDown">
+                    {% if message.tags == 'success' %}
+                    <i class="fas fa-check-circle"></i>
+                    {% elif message.tags == 'error' %}
+                    <i class="fas fa-exclamation-circle"></i>
+                    {% elif message.tags == 'warning' %}
+                    <i class="fas fa-exclamation-triangle"></i>
+                    {% else %}
+                    <i class="fas fa-info-circle"></i>
+                    {% endif %}
+                    {{ message }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Stock Summary -->
+            <div class="stock-summary animate__animated animate__fadeIn">
+                <h4 class="mb-3">Stock Overview</h4>
+                <div class="stock-summary-grid">
+                    <div class="stock-summary-card in-stock">
+                        <div class="number">{{ in_stock_count }}</div>
+                        <div class="label">In Stock</div>
+                    </div>
+                    <div class="stock-summary-card low-stock">
+                        <div class="number">{{ low_stock_count }}</div>
+                        <div class="label">Low Stock</div>
+                    </div>
+                    <div class="stock-summary-card out-of-stock">
+                        <div class="number">{{ out_of_stock_count }}</div>
+                        <div class="label">Out of Stock</div>
+                    </div>
+                    <div class="stock-summary-card preorder">
+                        <div class="number">{{ preorder_count }}</div>
+                        <div class="label">Preorder Available</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-section animate__animated animate__fadeIn">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control search-box" id="stockSearchInput" placeholder="Search products...">
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="categoryFilter">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="stockFilter">
+                            <option value="">All Stock Status</option>
+                            <option value="in_stock">In Stock</option>
+                            <option value="low_stock">Low Stock</option>
+                            <option value="out_of_stock">Out of Stock</option>
+                            <option value="preorder">Preorder</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock Table -->
+            <div class="stock-table animate__animated animate__fadeIn">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Status</th>
+                                <th>Preorder</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stockTableBody">
+                            {% for product in products %}
+                            <tr data-product-id="{{ product.id }}" 
+                                data-category="{{ product.category.id }}"
+                                data-stock-status="{% if product.stock > 10 %}in_stock{% elif product.stock > 0 %}low_stock{% else %}out_of_stock{% endif %}"
+                                data-preorder="{{ product.preorder|yesno:'true,false' }}">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if product.images.exists %}
+                                            {% with first_image=product.images.first %}
+                                                {% if first_image.image and first_image.image.url %}
+                                                    <img src="{{ first_image.image.url }}" alt="{{ product.name }}" class="product-image me-3">
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% endif %}
+                                        <div>
+                                            <div class="fw-bold">{{ product.name }}</div>
+                                            <small class="text-muted">SKU: {{ product.sku }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {{ product.category.name }}
+                                    {% if product.subcategory %}
+                                        <br><small class="text-muted">{{ product.subcategory.name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control stock-input" value="{{ product.stock }}" min="0">
+                                        <button class="btn btn-outline-primary btn-stock update-stock-btn" type="button">
+                                            <i class="fas fa-save"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="stock-status {% if product.stock > 10 %}stock-in{% elif product.stock > 0 %}stock-low{% else %}stock-out{% endif %}">
+                                        {% if product.stock > 10 %}
+                                            In Stock
+                                        {% elif product.stock > 0 %}
+                                            Low Stock
+                                        {% else %}
+                                            Out of Stock
+                                        {% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input preorder-toggle" type="checkbox" {% if product.preorder %}checked{% endif %}>
+                                        <label class="form-check-label">Enable Preorder</label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <a href="{% url 'custom_product_edit' product.slug %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Search functionality
+    const searchInput = document.getElementById('stockSearchInput');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const stockFilter = document.getElementById('stockFilter');
+    const tableBody = document.getElementById('stockTableBody');
+    const rows = tableBody.getElementsByTagName('tr');
+
+    function filterTable() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedCategory = categoryFilter.value;
+        const selectedStockStatus = stockFilter.value;
+        
+        Array.from(rows).forEach(row => {
+            const productName = row.querySelector('.fw-bold').textContent.toLowerCase();
+            const sku = row.querySelector('.text-muted').textContent.toLowerCase();
+            const category = row.dataset.category;
+            const stockStatus = row.dataset.stockStatus;
+            const preorder = row.dataset.preorder;
+            
+            const matchesSearch = productName.includes(searchTerm) || sku.includes(searchTerm);
+            const matchesCategory = !selectedCategory || category === selectedCategory;
+            const matchesStock = !selectedStockStatus || 
+                               (selectedStockStatus === 'preorder' ? preorder === 'true' : stockStatus === selectedStockStatus);
+            
+            row.style.display = matchesSearch && matchesCategory && matchesStock ? '' : 'none';
+        });
+    }
+
+    searchInput.addEventListener('input', filterTable);
+    categoryFilter.addEventListener('change', filterTable);
+    stockFilter.addEventListener('change', filterTable);
+
+    // Stock update functionality
+    const updateButtons = document.querySelectorAll('.update-stock-btn');
+    updateButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const row = this.closest('tr');
+            const productId = row.dataset.productId;
+            const stockInput = row.querySelector('.stock-input');
+            const newStock = parseInt(stockInput.value);
+            const statusBadge = row.querySelector('.stock-status');
+            const preorderToggle = row.querySelector('.preorder-toggle');
+
+            // Send update to server
+            fetch(`/shop/update-stock/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    stock: newStock,
+                    preorder: preorderToggle.checked
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update status badge
+                    if (newStock > 10) {
+                        statusBadge.className = 'stock-status stock-in';
+                        statusBadge.textContent = 'In Stock';
+                        row.dataset.stockStatus = 'in_stock';
+                    } else if (newStock > 0) {
+                        statusBadge.className = 'stock-status stock-low';
+                        statusBadge.textContent = 'Low Stock';
+                        row.dataset.stockStatus = 'low_stock';
+                    } else {
+                        statusBadge.className = 'stock-status stock-out';
+                        statusBadge.textContent = 'Out of Stock';
+                        row.dataset.stockStatus = 'out_of_stock';
+                    }
+
+                    // Show success message
+                    showToast('Stock updated successfully', 'success');
+                } else {
+                    showToast(data.message || 'Error updating stock', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error updating stock', 'error');
+            });
+        });
+    });
+
+    // Preorder toggle functionality
+    const preorderToggles = document.querySelectorAll('.preorder-toggle');
+    preorderToggles.forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const row = this.closest('tr');
+            const productId = row.dataset.productId;
+            const stockInput = row.querySelector('.stock-input');
+            const newStock = parseInt(stockInput.value);
+
+            // Send update to server
+            fetch(`/shop/update-stock/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    stock: newStock,
+                    preorder: this.checked
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    row.dataset.preorder = this.checked.toString();
+                    showToast('Preorder status updated successfully', 'success');
+                } else {
+                    this.checked = !this.checked; // Revert the toggle
+                    showToast(data.message || 'Error updating preorder status', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.checked = !this.checked; // Revert the toggle
+                showToast('Error updating preorder status', 'error');
+            });
+        });
+    });
+
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Helper function to show toast messages
+    function showToast(message, type = 'success') {
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        toastContainer.style.zIndex = '1050';
+
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+
+        toastContainer.appendChild(toast);
+        document.body.appendChild(toastContainer);
+
+        const bsToast = new bootstrap.Toast(toast, {
+            autohide: true,
+            delay: 3000
+        });
+        bsToast.show();
+
+        toast.addEventListener('hidden.bs.toast', () => {
+            document.body.removeChild(toastContainer);
+        });
+    }
+});
+</script>
+{% endblock %} 

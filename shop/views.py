@@ -14,7 +14,7 @@ from django.db.models import Q, Case, When, IntegerField
 import json
 
 from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory, SiteSettings, AboutUs, Contact
-from order.models import Order
+from order.models import Order, StockMovement
 from .forms import ProductCreateForm, ProductEditForm, ProductImageFormSet
 
 # Create a context processor to make categories available in all templates
@@ -118,17 +118,30 @@ def custom_product_list_view(request):
     print('User:', request.user, 'is_staff:', request.user.is_staff, 'is_authenticated:', request.user.is_authenticated)
     products = Product.objects.all().order_by('-created_at')
     
+    # Get stock summary counts
+    in_stock_count = Product.objects.filter(stock__gt=10).count()
+    low_stock_count = Product.objects.filter(stock__gt=0, stock__lte=10).count()
+    out_of_stock_count = Product.objects.filter(stock=0).count()
+    preorder_count = Product.objects.filter(preorder=True).count()
+    
     # Get order counts
     pending_orders_count = Order.objects.filter(status='pending').count()
     processing_orders_count = Order.objects.filter(status='processing').count()
     delivered_orders_count = Order.objects.filter(status='delivered').count()
+    # Count orders with preorder items
+    preorder_orders_count = Order.objects.filter(items__is_preorder=True).distinct().count()
     
     context = {
         'products': products,
         'title': 'Manage Products',
+        'in_stock_count': in_stock_count,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'preorder_count': preorder_count,
         'pending_orders_count': pending_orders_count,
         'processing_orders_count': processing_orders_count,
         'delivered_orders_count': delivered_orders_count,
+        'preorder_orders_count': preorder_orders_count,
     }
     return render(request, 'shop/custom_product_list.html', context)
 
@@ -176,15 +189,18 @@ def index(request):
     about_us = AboutUs.get_about_us()
     
     # Get products for each section with pagination
+    # Only show products that are either in stock or available for preorder
+    base_product_query = Q(available=True) & (Q(stock__gt=0) | Q(preorder=True))
+    
     # For new arrivals, get the 16 most recent products
     new_arrival = Product.objects.filter(
-        available=True
-    ).order_by('-created_at')[:16]  # Get only the 16 most recent products
+        base_product_query
+    ).order_by('-created_at')[:16]
     
-    trending = Product.objects.filter(trending=True, available=True).order_by('-created_at')
-    products = Product.objects.filter(available=True).order_by('-created_at')
-    best_selling = Product.objects.filter(best_selling=True, available=True).order_by('-created_at')
-    featured = Product.objects.filter(featured=True, available=True).order_by('-created_at')
+    trending = Product.objects.filter(base_product_query, trending=True).order_by('-created_at')
+    products = Product.objects.filter(base_product_query).order_by('-created_at')
+    best_selling = Product.objects.filter(base_product_query, best_selling=True).order_by('-created_at')
+    featured = Product.objects.filter(base_product_query, featured=True).order_by('-created_at')
     
     # Pagination for each section
     new_arrival_page = request.GET.get('new_arrival_page', 1)
@@ -230,23 +246,27 @@ def index(request):
     return render(request, 'shop/index.html', context)
 
 def product_detail(request, slug):
-    product = get_object_or_404(Product, slug=slug, available=True)
+    # Only show products that are either in stock or available for preorder
+    product = get_object_or_404(
+        Product,
+        Q(slug=slug) & Q(available=True) & (Q(stock__gt=0) | Q(preorder=True))
+    )
     
-    # Get related products using the same logic as cart view
+    # Get related products using the same logic
     related_products = Product.objects.filter(
-        Q(subcategory=product.subcategory) | Q(category=product.category),
-        available=True
+        (Q(subcategory=product.subcategory) | Q(category=product.category)) &
+        Q(available=True) &
+        (Q(stock__gt=0) | Q(preorder=True))
     ).exclude(
         id=product.id
     ).order_by(
-        # Order by subcategory match first, then random
         Case(
             When(subcategory=product.subcategory, then=0),
             default=1,
             output_field=IntegerField(),
         ),
         '?'
-    )[:4]  # Limit to 4 products
+    )[:4]
     
     context = {
         'product': product,
@@ -262,8 +282,9 @@ def category_view(request, category_slug):
     # Get subcategories for filtering
     subcategories = ProductSubCategory.objects.filter(category=category)
     
-    # Initialize with all products in this category
-    products_list = Product.objects.filter(category=category, available=True)
+    # Initialize with all products in this category that are either in stock or available for preorder
+    base_product_query = Q(category=category, available=True) & (Q(stock__gt=0) | Q(preorder=True))
+    products_list = Product.objects.filter(base_product_query)
     
     # Apply subcategory filter if requested
     subcategory_slug = request.GET.get('subcategory')
@@ -310,14 +331,13 @@ def search_results(request):
     query = request.GET.get('query', '')
     
     if query:
-        # Search in product name and description
+        # Search in product name and description, only show products that are either in stock or available for preorder
+        base_query = Q(available=True) & (Q(stock__gt=0) | Q(preorder=True))
         products_list = Product.objects.filter(
-            available=True
-        ).filter(
+            base_query,
             name__icontains=query
         ) | Product.objects.filter(
-            available=True
-        ).filter(
+            base_query,
             description__icontains=query
         )
     else:
@@ -384,8 +404,9 @@ def products_view(request):
     subcategory_slug = request.GET.get('subcategory')
     sort_by = request.GET.get('sort', 'newest')
     
-    # Initialize products queryset
-    products = Product.objects.filter(available=True)
+    # Initialize products queryset - only show products that are either in stock or available for preorder
+    base_query = Q(available=True) & (Q(stock__gt=0) | Q(preorder=True))
+    products = Product.objects.filter(base_query)
     
     # Apply category filter if selected
     if category_slug:
@@ -473,6 +494,8 @@ def manage_orders(request):
         status = request.GET.get('status')
         date = request.GET.get('date')
         search = request.GET.get('search')
+        preorder = request.GET.get('preorder')
+        stock_status = request.GET.get('stock_status')
 
         # Start with all orders
         orders = Order.objects.all().order_by('-order_date')
@@ -488,12 +511,35 @@ def manage_orders(request):
                 Q(customer_email__icontains=search) |
                 Q(customer_phone__icontains=search)
             )
+        if preorder == 'true':
+            orders = orders.filter(items__is_preorder=True).distinct()
+        
+        # Apply stock status filter
+        if stock_status:
+            if stock_status == 'in_stock':
+                orders = orders.filter(items__product__stock__gt=10).distinct()
+            elif stock_status == 'low_stock':
+                orders = orders.filter(
+                    items__product__stock__gt=0,
+                    items__product__stock__lte=10
+                ).distinct()
+            elif stock_status == 'out_of_stock':
+                orders = orders.filter(items__product__stock=0).distinct()
+            elif stock_status == 'preorder':
+                orders = orders.filter(items__is_preorder=True).distinct()
 
         context = {
             'orders': orders,
             'nav_links': get_navigation_links(),
             'footer_links': get_footer_links(),
             'site_settings': SiteSettings.get_settings(),
+            'current_filters': {
+                'status': status,
+                'date': date,
+                'search': search,
+                'preorder': preorder,
+                'stock_status': stock_status,
+            }
         }
         return render(request, 'shop/manage_orders.html', context)
     except Exception as e:
@@ -534,3 +580,82 @@ def order_detail(request, order_id):
     except Order.DoesNotExist:
         messages.error(request, 'Order not found')
         return redirect('manage_orders')
+
+@staff_member_required
+@require_POST
+def update_stock(request, product_id):
+    try:
+        data = json.loads(request.body)
+        product = get_object_or_404(Product, id=product_id)
+        
+        # Update stock
+        new_stock = int(data.get('stock', 0))
+        if new_stock < 0:
+            return JsonResponse({
+                'success': False,
+                'message': 'Stock cannot be negative'
+            })
+        
+        product.stock = new_stock
+        
+        # Update preorder status
+        product.preorder = data.get('preorder', False)
+        
+        # Update availability based on stock and preorder status
+        if new_stock > 0 or product.preorder:
+            product.available = True
+        else:
+            product.available = False
+        
+        product.save()
+        
+        # Create stock movement record
+        StockMovement.objects.create(
+            product=product,
+            quantity=new_stock - product.stock,  # Difference between new and old stock
+            type='MANUAL_UPDATE',
+            reason='Manual stock update'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Stock updated successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        })
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid stock value'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        })
+
+@staff_member_required
+def stock_management_view(request):
+    """View for managing product stock"""
+    products = Product.objects.all().order_by('-created_at')
+    categories = ProductCategory.objects.all()
+    
+    # Get stock summary counts
+    in_stock_count = Product.objects.filter(stock__gt=10).count()
+    low_stock_count = Product.objects.filter(stock__gt=0, stock__lte=10).count()
+    out_of_stock_count = Product.objects.filter(stock=0).count()
+    preorder_count = Product.objects.filter(preorder=True).count()
+    
+    context = {
+        'products': products,
+        'categories': categories,
+        'in_stock_count': in_stock_count,
+        'low_stock_count': low_stock_count,
+        'out_of_stock_count': out_of_stock_count,
+        'preorder_count': preorder_count,
+    }
+    return render(request, 'shop/stock_management.html', context)
