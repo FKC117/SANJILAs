@@ -4,6 +4,8 @@ from django.utils.translation import gettext_lazy as _
 from django.db.models import Sum, F, ExpressionWrapper, FloatField
 from django.utils import timezone
 from datetime import timedelta
+from django.core.validators import MinValueValidator
+from decimal import Decimal
 
 class AdminActivity(models.Model):
     ACTIVITY_TYPES = [
@@ -239,3 +241,227 @@ class MonthlyReport(models.Model):
             }
         )
         return report
+
+class Account(models.Model):
+    """Chart of Accounts"""
+    ACCOUNT_TYPES = [
+        ('ASSET', 'Asset'),
+        ('LIABILITY', 'Liability'),
+        ('EQUITY', 'Equity'),
+        ('REVENUE', 'Revenue'),
+        ('EXPENSE', 'Expense'),
+    ]
+    
+    code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children')
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['code']
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+    def get_balance(self, start_date=None, end_date=None):
+        """Calculate account balance for a given period"""
+        if not start_date:
+            start_date = timezone.now().replace(day=1)
+        if not end_date:
+            end_date = timezone.now()
+            
+        transactions = Transaction.objects.filter(
+            account=self,
+            date__range=[start_date, end_date]
+        )
+        
+        return sum(t.amount for t in transactions)
+
+class Transaction(models.Model):
+    """Financial Transactions"""
+    TRANSACTION_TYPES = [
+        ('SALE', 'Sale'),
+        ('PURCHASE', 'Purchase'),
+        ('EXPENSE', 'Expense'),
+        ('RECEIVABLE', 'Accounts Receivable'),
+        ('PAYABLE', 'Accounts Payable'),
+        ('ADJUSTMENT', 'Adjustment'),
+    ]
+    
+    date = models.DateField()
+    type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    description = models.TextField()
+    reference = models.CharField(max_length=50, blank=True)  # Invoice/Receipt number
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+
+    def __str__(self):
+        return f"{self.date} - {self.type} - {self.amount}"
+
+class JournalEntry(models.Model):
+    """Double-entry accounting journal entries"""
+    date = models.DateField()
+    reference = models.CharField(max_length=50, unique=True)
+    description = models.TextField()
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name_plural = "Journal Entries"
+
+    def __str__(self):
+        return f"{self.date} - {self.reference}"
+
+class JournalEntryLine(models.Model):
+    """Individual lines in a journal entry"""
+    entry = models.ForeignKey(JournalEntry, on_delete=models.CASCADE, related_name='lines')
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    debit = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    credit = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    description = models.TextField(blank=True)
+
+    def __str__(self):
+        return f"{self.entry.reference} - {self.account.name}"
+
+class Receivable(models.Model):
+    """Accounts Receivable"""
+    customer = models.ForeignKey('shop.Customer', on_delete=models.CASCADE)
+    invoice_number = models.CharField(max_length=50, unique=True)
+    date = models.DateField()
+    due_date = models.DateField()
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    paid_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=[
+        ('PENDING', 'Pending'),
+        ('PARTIAL', 'Partially Paid'),
+        ('PAID', 'Paid'),
+        ('OVERDUE', 'Overdue'),
+    ])
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.invoice_number} - {self.customer.name}"
+
+    @property
+    def balance(self):
+        return self.amount - self.paid_amount
+
+class Payable(models.Model):
+    """Accounts Payable"""
+    supplier = models.ForeignKey('shop.Supplier', on_delete=models.CASCADE)
+    invoice_number = models.CharField(max_length=50, unique=True)
+    date = models.DateField()
+    due_date = models.DateField()
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    paid_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=[
+        ('PENDING', 'Pending'),
+        ('PARTIAL', 'Partially Paid'),
+        ('PAID', 'Paid'),
+        ('OVERDUE', 'Overdue'),
+    ])
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.invoice_number} - {self.supplier.name}"
+
+    @property
+    def balance(self):
+        return self.amount - self.paid_amount
+
+class Expense(models.Model):
+    """Expense tracking"""
+    EXPENSE_TYPES = [
+        ('OPERATING', 'Operating Expense'),
+        ('PAYROLL', 'Payroll'),
+        ('RENT', 'Rent'),
+        ('UTILITIES', 'Utilities'),
+        ('MARKETING', 'Marketing'),
+        ('OTHER', 'Other'),
+    ]
+    
+    date = models.DateField()
+    type = models.CharField(max_length=20, choices=EXPENSE_TYPES)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    description = models.TextField()
+    receipt = models.FileField(upload_to='expense_receipts/', blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approved_expenses')
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_expenses')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.date} - {self.type} - {self.amount}"
+
+class Revenue(models.Model):
+    """Revenue tracking"""
+    REVENUE_TYPES = [
+        ('SALES', 'Sales Revenue'),
+        ('SERVICE', 'Service Revenue'),
+        ('OTHER', 'Other Revenue'),
+    ]
+    
+    date = models.DateField()
+    type = models.CharField(max_length=20, choices=REVENUE_TYPES)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    description = models.TextField()
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.date} - {self.type} - {self.amount}"
+
+# Financial Reports Models
+class FinancialReport(models.Model):
+    """Base model for financial reports"""
+    REPORT_TYPES = [
+        ('P&L', 'Profit & Loss'),
+        ('BS', 'Balance Sheet'),
+        ('CF', 'Cash Flow'),
+    ]
+    
+    type = models.CharField(max_length=20, choices=REPORT_TYPES)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        abstract = True
+
+class ProfitLossReport(FinancialReport):
+    """Profit & Loss Statement"""
+    total_revenue = models.DecimalField(max_digits=15, decimal_places=2)
+    total_expenses = models.DecimalField(max_digits=15, decimal_places=2)
+    net_profit = models.DecimalField(max_digits=15, decimal_places=2)
+
+    def __str__(self):
+        return f"P&L Report - {self.start_date} to {self.end_date}"
+
+class BalanceSheetReport(FinancialReport):
+    """Balance Sheet"""
+    total_assets = models.DecimalField(max_digits=15, decimal_places=2)
+    total_liabilities = models.DecimalField(max_digits=15, decimal_places=2)
+    total_equity = models.DecimalField(max_digits=15, decimal_places=2)
+
+    def __str__(self):
+        return f"Balance Sheet - {self.start_date} to {self.end_date}"

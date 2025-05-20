@@ -8,6 +8,8 @@ import json
 from decimal import Decimal  # Add this import at the top
 from django.db.models import Q, Case, When, IntegerField
 from .models import StockMovement
+from django.utils import timezone
+from django.db.models import F
 
 def cart_add(request):
     if request.method == 'POST':
@@ -448,10 +450,56 @@ def checkout_view(request):
                         reason=f'Order #{order.id}'
                     )
 
+                    # Update product analytics
+                    from accounts.models import ProductAnalytics
+                    try:
+                        # Try to get existing analytics record
+                        analytics = ProductAnalytics.objects.get(
+                            product=product_instance,
+                            date=timezone.now().date()
+                        )
+                        # Update existing record
+                        analytics.quantity_sold = F('quantity_sold') + item['quantity']
+                        analytics.total_sales = F('total_sales') + (item['quantity'] * Decimal(str(product_instance.get_selling_price())))
+                        analytics.total_cost = F('total_cost') + (item['quantity'] * product_instance.buying_price)
+                        analytics.stock_level = product_instance.stock
+                        analytics.save()
+                    except ProductAnalytics.DoesNotExist:
+                        # Create new record if it doesn't exist
+                        ProductAnalytics.objects.create(
+                            product=product_instance,
+                            date=timezone.now().date(),
+                            quantity_sold=item['quantity'],
+                            total_sales=item['quantity'] * Decimal(str(product_instance.get_selling_price())),
+                            total_cost=item['quantity'] * product_instance.buying_price,
+                            stock_level=product_instance.stock
+                        )
+
             except (KeyError, AttributeError, Exception) as e:
                 print(f"Error creating order item for product ID {item.get('product_id', 'N/A')}: {e}")
                 continue
         
+        # Update daily sales
+        from accounts.models import DailySales
+        try:
+            # Try to get existing daily sales record
+            daily_sales = DailySales.objects.get(date=timezone.now().date())
+            # Update existing record
+            daily_sales.total_sales = F('total_sales') + order.total_amount
+            daily_sales.total_orders = F('total_orders') + 1
+            daily_sales.total_cost = F('total_cost') + sum(item.quantity * item.product.buying_price for item in order.items.all())
+            daily_sales.total_expenses = F('total_expenses') + order.shipping_cost
+            daily_sales.save()
+        except DailySales.DoesNotExist:
+            # Create new record if it doesn't exist
+            DailySales.objects.create(
+                date=timezone.now().date(),
+                total_sales=order.total_amount,
+                total_orders=1,
+                total_cost=sum(item.quantity * item.product.buying_price for item in order.items.all()),
+                total_expenses=order.shipping_cost
+            )
+
         cart.clear()
         messages.success(request, f'Order #{order.id} placed successfully!')
         
@@ -918,6 +966,52 @@ def cancel_order(request, order_id):
                         type='CANCELLED_ORDER',
                         reason=f'Order #{order.id} cancelled'
                     )
+
+                    # Update product analytics
+                    from accounts.models import ProductAnalytics
+                    try:
+                        # Try to get existing analytics record
+                        analytics = ProductAnalytics.objects.get(
+                            product=product,
+                            date=timezone.now().date()
+                        )
+                        # Update existing record
+                        analytics.quantity_sold = F('quantity_sold') - item.quantity
+                        analytics.total_sales = F('total_sales') - (item.quantity * item.unit_price)
+                        analytics.total_cost = F('total_cost') - (item.quantity * product.buying_price)
+                        analytics.stock_level = product.stock
+                        analytics.save()
+                    except ProductAnalytics.DoesNotExist:
+                        # Create new record if it doesn't exist
+                        ProductAnalytics.objects.create(
+                            product=product,
+                            date=timezone.now().date(),
+                            quantity_sold=item.quantity,
+                            total_sales=item.quantity * item.unit_price,
+                            total_cost=item.quantity * product.buying_price,
+                            stock_level=product.stock
+                        )
+
+            # Update daily sales
+            from accounts.models import DailySales
+            try:
+                # Try to get existing daily sales record
+                daily_sales = DailySales.objects.get(date=timezone.now().date())
+                # Update existing record
+                daily_sales.total_sales = F('total_sales') - order.total_amount
+                daily_sales.total_orders = F('total_orders') - 1
+                daily_sales.total_cost = F('total_cost') - sum(item.quantity * item.product.buying_price for item in order.items.all())
+                daily_sales.total_expenses = F('total_expenses') - order.shipping_cost
+                daily_sales.save()
+            except DailySales.DoesNotExist:
+                # Create new record if it doesn't exist
+                DailySales.objects.create(
+                    date=timezone.now().date(),
+                    total_sales=order.total_amount,
+                    total_orders=1,
+                    total_cost=sum(item.quantity * item.product.buying_price for item in order.items.all()),
+                    total_expenses=order.shipping_cost
+                )
 
             return JsonResponse({
                 'success': True,

@@ -1,20 +1,21 @@
-from django.shortcuts import render
-from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import user_passes_test, login_required
 from django.db.models import Sum, Count, Avg, ExpressionWrapper, FloatField, F
-from django.db.models.functions import Cast
+from django.db.models.functions import Cast, TruncDate, TruncMonth, TruncYear
 from django.utils import timezone
 from datetime import timedelta, datetime
 from django.http import JsonResponse
 from .models import (
     FinancialTransaction, ProductAnalytics, DailySales, 
-    MonthlyReport, AdminActivity, SystemNotification
+    MonthlyReport, AdminActivity, SystemNotification,
+    Account, Transaction, JournalEntry, JournalEntryLine,
+    Receivable, Payable, Expense, Revenue,
+    ProfitLossReport, BalanceSheetReport
 )
 from shop.models import Product
 from order.models import Order, OrderItem
-from django.db.models.functions import TruncDate, TruncMonth
 from django.contrib import messages
 from django.urls import reverse
-from django.shortcuts import redirect
 from decimal import Decimal
 
 def is_superuser(user):
@@ -68,7 +69,7 @@ def product_dashboard(request):
         'today': today,
         'products': products,
     }
-    return render(request, 'accounts/product_dashboard.html', context)
+    return render(request, 'shop/product_dashboard.html', context)
 
 def get_date_range(request):
     """Helper function to get date range from request parameters"""
@@ -114,12 +115,39 @@ def get_sales_data(request):
         start_date, end_date = get_date_range(request)
         print(f"2. Date range: {start_date} to {end_date}")
 
+        # Convert dates to timezone-aware datetimes
+        start_datetime = timezone.make_aware(datetime.combine(start_date, datetime.min.time()))
+        end_datetime = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
+
         # Get daily sales data
         print("3. Querying daily sales data...")
         try:
+            # Get sales breakdown by status
+            status_breakdown = Order.objects.filter(
+                order_date__range=[start_datetime, end_datetime],
+                status__in=['delivered', 'shipped', 'pending']
+            ).values('status').annotate(
+                total_sales=Sum('total_amount'),
+                order_count=Count('id')
+            )
+            
+            # Initialize status totals
+            status_totals = {
+                'delivered': {'sales': Decimal('0'), 'orders': 0},
+                'shipped': {'sales': Decimal('0'), 'orders': 0},
+                'pending': {'sales': Decimal('0'), 'orders': 0}
+            }
+            
+            # Calculate totals by status
+            for item in status_breakdown:
+                status = item['status']
+                status_totals[status]['sales'] = Decimal(str(item['total_sales'] or 0))
+                status_totals[status]['orders'] = item['order_count']
+
+            # Get daily data
             daily_data = Order.objects.filter(
-                order_date__range=[start_date, end_date],
-                status__in=['delivered', 'shipped']  # Consider both delivered and shipped orders as completed
+                order_date__range=[start_datetime, end_datetime],
+                status__in=['delivered', 'shipped', 'pending']
             ).values('order_date').annotate(
                 sales=Sum('total_amount'),
                 orders=Count('id')
@@ -157,8 +185,8 @@ def get_sales_data(request):
         print("8. Calculating profits...")
         try:
             total_cost = OrderItem.objects.filter(
-                order__order_date__range=[start_date, end_date],
-                order__status__in=['delivered', 'shipped']  # Match the same status filter
+                order__order_date__range=[start_datetime, end_datetime],
+                order__status__in=['delivered', 'shipped', 'pending']
             ).aggregate(
                 total=Sum(F('quantity') * F('product__buying_price'))
             )['total'] or Decimal('0')
@@ -193,7 +221,15 @@ def get_sales_data(request):
                     'gross_profit': float(gross_profit),
                     'net_profit': float(net_profit),
                     'total_expenses': float(total_expenses),
-                    'expenses': {k: float(v) for k, v in expenses.items()}  # Convert all expense values to float
+                    'expenses': {k: float(v) for k, v in expenses.items()},
+                    'status_breakdown': {
+                        status: {
+                            'sales': float(data['sales']),
+                            'orders': data['orders'],
+                            'percentage': float(data['sales'] / total_sales * 100) if total_sales > 0 else 0
+                        }
+                        for status, data in status_totals.items()
+                    }
                 }
             }
         }
@@ -486,3 +522,201 @@ def get_expense_breakdown(start_date, end_date):
     }
 
     return total_expenses
+
+@user_passes_test(is_superuser)
+def accounting_dashboard(request):
+    """Main accounting dashboard view"""
+    # Get date range
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=30)
+    
+    # Get financial summary
+    total_revenue = Revenue.objects.filter(
+        date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    total_expenses = Expense.objects.filter(
+        date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    total_receivables = Receivable.objects.filter(
+        status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+    ).aggregate(total=Sum('balance'))['total'] or 0
+    
+    total_payables = Payable.objects.filter(
+        status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+    ).aggregate(total=Sum('balance'))['total'] or 0
+    
+    # Get recent transactions
+    recent_transactions = Transaction.objects.select_related(
+        'account'
+    ).order_by('-date', '-created_at')[:10]
+    
+    # Get monthly revenue trend
+    monthly_revenue = Revenue.objects.annotate(
+        month=TruncMonth('date')
+    ).values('month').annotate(
+        total=Sum('amount')
+    ).order_by('month')[:12]
+    
+    # Get expense breakdown
+    expense_breakdown = Expense.objects.values(
+        'type'
+    ).annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+    
+    # Get overdue receivables
+    overdue_receivables = Receivable.objects.filter(
+        status='OVERDUE'
+    ).select_related('customer').order_by('due_date')[:5]
+    
+    # Get upcoming payables
+    upcoming_payables = Payable.objects.filter(
+        status__in=['PENDING', 'PARTIAL'],
+        due_date__lte=end_date + timedelta(days=30)
+    ).select_related('supplier').order_by('due_date')[:5]
+    
+    context = {
+        'total_revenue': total_revenue,
+        'total_expenses': total_expenses,
+        'net_profit': total_revenue - total_expenses,
+        'total_receivables': total_receivables,
+        'total_payables': total_payables,
+        'recent_transactions': recent_transactions,
+        'monthly_revenue': monthly_revenue,
+        'expense_breakdown': expense_breakdown,
+        'overdue_receivables': overdue_receivables,
+        'upcoming_payables': upcoming_payables,
+    }
+    
+    return render(request, 'accounts/accounting_dashboard.html', context)
+
+@user_passes_test(is_superuser)
+def chart_of_accounts(request):
+    """View and manage chart of accounts"""
+    accounts = Account.objects.select_related('parent').order_by('code')
+    return render(request, 'accounts/chart_of_accounts.html', {'accounts': accounts})
+
+@user_passes_test(is_superuser)
+def journal_entries(request):
+    """View and manage journal entries"""
+    entries = JournalEntry.objects.select_related(
+        'created_by'
+    ).prefetch_related(
+        'lines__account'
+    ).order_by('-date', '-created_at')
+    
+    return render(request, 'accounts/journal_entries.html', {'entries': entries})
+
+@user_passes_test(is_superuser)
+def receivables(request):
+    """View and manage accounts receivable"""
+    receivables = Receivable.objects.select_related(
+        'customer'
+    ).order_by('-date')
+    
+    # Get summary statistics
+    summary = {
+        'total': receivables.aggregate(total=Sum('amount'))['total'] or 0,
+        'paid': receivables.aggregate(paid=Sum('paid_amount'))['paid'] or 0,
+        'overdue': receivables.filter(status='OVERDUE').aggregate(
+            total=Sum('balance')
+        )['total'] or 0,
+    }
+    
+    context = {
+        'receivables': receivables,
+        'summary': summary,
+    }
+    
+    return render(request, 'accounts/receivables.html', context)
+
+@user_passes_test(is_superuser)
+def payables(request):
+    """View and manage accounts payable"""
+    payables = Payable.objects.select_related(
+        'supplier'
+    ).order_by('-date')
+    
+    # Get summary statistics
+    summary = {
+        'total': payables.aggregate(total=Sum('amount'))['total'] or 0,
+        'paid': payables.aggregate(paid=Sum('paid_amount'))['paid'] or 0,
+        'overdue': payables.filter(status='OVERDUE').aggregate(
+            total=Sum('balance')
+        )['total'] or 0,
+    }
+    
+    context = {
+        'payables': payables,
+        'summary': summary,
+    }
+    
+    return render(request, 'accounts/payables.html', context)
+
+@user_passes_test(is_superuser)
+def expenses(request):
+    """View and manage expenses"""
+    expenses = Expense.objects.select_related(
+        'account', 'created_by', 'approved_by'
+    ).order_by('-date')
+    
+    # Get summary by type
+    summary = expenses.values('type').annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+    
+    context = {
+        'expenses': expenses,
+        'summary': summary,
+    }
+    
+    return render(request, 'accounts/expenses.html', context)
+
+@user_passes_test(is_superuser)
+def revenue(request):
+    """View and manage revenue"""
+    revenues = Revenue.objects.select_related(
+        'account', 'created_by'
+    ).order_by('-date')
+    
+    # Get summary by type
+    summary = revenues.values('type').annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+    
+    context = {
+        'revenues': revenues,
+        'summary': summary,
+    }
+    
+    return render(request, 'accounts/revenue.html', context)
+
+@user_passes_test(is_superuser)
+def financial_reports(request):
+    """View financial reports"""
+    # Get date range
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=30)
+    
+    # Get P&L report
+    pl_report = ProfitLossReport.objects.filter(
+        start_date=start_date,
+        end_date=end_date
+    ).first()
+    
+    # Get Balance Sheet
+    bs_report = BalanceSheetReport.objects.filter(
+        start_date=start_date,
+        end_date=end_date
+    ).first()
+    
+    context = {
+        'pl_report': pl_report,
+        'bs_report': bs_report,
+        'start_date': start_date,
+        'end_date': end_date,
+    }
+    
+    return render(request, 'accounts/financial_reports.html', context)
