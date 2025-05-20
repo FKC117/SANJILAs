@@ -542,8 +542,11 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('Cart page loaded');
+        
         // Helper function to show notifications
         function showNotification(type, message) {
+            console.log('Showing notification:', { type, message });
             let notificationClass = 'notification-success';
             if (type === 'error') {
                 notificationClass = 'notification-error';
@@ -560,164 +563,414 @@
             }, 3000);
         }
         
-        // Quantity input handling for all items in cart
+        // Debounce function to prevent rapid-fire updates
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Update the validateQuantity function to be more robust
+        function validateQuantity(input, max) {
+            const value = parseInt(input.value) || 0;
+            const min = parseInt(input.getAttribute('min')) || 1;
+            const maxQuantity = parseInt(max) || 999;
+            
+            // Only validate and adjust the value, don't modify the input
+            if (value < min) {
+                return min;
+            }
+            if (value > maxQuantity) {
+                return maxQuantity;
+            }
+            return value;
+        }
+        
+        // Track ongoing updates to prevent race conditions
+        const updatePromises = new Map();
+        
+        // Update the updateCartItem function to ensure proper quantity handling
+        const updateCartItem = debounce(async function(input) {
+            const row = input.closest('tr');
+            const productId = row.getAttribute('data-product-id');
+            const maxQuantity = parseInt(input.getAttribute('max')) || 999;
+            const minQuantity = parseInt(input.getAttribute('min')) || 1;
+            const currentValue = parseInt(input.value) || 1;
+            const quantity = validateQuantity(input, maxQuantity);
+            
+            // Additional validation to prevent jumps
+            if (Math.abs(currentValue - quantity) > 1) {
+                console.warn('Detected large quantity change:', { currentValue, quantity });
+                return;
+            }
+            
+            // Update the input value if it was outside bounds
+            if (currentValue !== quantity) {
+                console.log('Adjusting input value:', { from: currentValue, to: quantity });
+                input.value = quantity;
+            }
+            
+            // If there's already an update in progress for this item, wait for it
+            if (updatePromises.has(productId)) {
+                console.log('Update already in progress for product:', productId);
+                return;
+            }
+            
+            // Disable input during update
+            input.disabled = true;
+            
+            try {
+                console.log('Updating cart item:', { 
+                    productId, 
+                    quantity,
+                    maxQuantity,
+                    inputValue: input.value,
+                    rowData: row ? {
+                        productId: row.getAttribute('data-product-id'),
+                        currentValue: input.value,
+                        max: input.getAttribute('max'),
+                        min: input.getAttribute('min')
+                    } : 'No row found'
+                });
+                
+                const requestBody = JSON.stringify({
+                    product_id: productId,
+                    quantity: quantity
+                });
+                
+                console.log('Sending request body:', requestBody);
+                
+                const updatePromise = fetch('{% url "cart_update" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: requestBody
+                });
+                
+                updatePromises.set(productId, updatePromise);
+                
+                const response = await updatePromise;
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Cart update response:', data);
+                
+                if (data.success) {
+                    // Update cart count in navbar
+                    $('.cart-count').text(data.cart_count);
+                    
+                    // Update subtotal for this item
+                    row.querySelector('.subtotal').textContent = '৳' + data.item_subtotal;
+                    
+                    // Update cart summary
+                    $('[data-cart-subtotal]').text('৳' + data.cart_total);
+                    $('#shipping-cost').text('৳' + data.shipping_cost);
+                    $('#order-total').text('৳' + data.grand_total);
+                    
+                    showNotification('success', data.message);
+                } else {
+                    // Revert input value on failure
+                    input.value = quantity;
+                    showNotification('error', data.message || 'Failed to update cart');
+                }
+            } catch (error) {
+                console.error('Cart update error:', error);
+                // Revert input value on error
+                input.value = quantity;
+                showNotification('error', 'Failed to update cart');
+            } finally {
+                // Clean up and re-enable input
+                updatePromises.delete(productId);
+                input.disabled = false;
+            }
+        }, 300);  // 300ms debounce
+        
+        // Quantity input handling
         const quantityInputs = document.querySelectorAll('.quantity-input');
         const minusBtns = document.querySelectorAll('.quantity-minus');
         const plusBtns = document.querySelectorAll('.quantity-plus');
         
-        // Shipping location radio buttons
-        const shippingLocationRadios = document.querySelectorAll('.shipping-location-radio');
+        quantityInputs.forEach((input, index) => {
+            // Store the last valid value to prevent jumps
+            let lastValidValue = parseInt(input.value) || 1;
+            
+            // Function to safely update input value
+            function setInputValue(newValue) {
+                const min = parseInt(input.getAttribute('min')) || 1;
+                const max = parseInt(input.getAttribute('max')) || 999;
+                const validValue = Math.max(min, Math.min(max, newValue));
+                console.log('Setting input value:', { from: input.value, to: validValue, min, max });
+                input.value = validValue;
+                lastValidValue = validValue;
+                return validValue;
+            }
+            
+            // Handle direct input
+            input.addEventListener('change', function() {
+                const newValue = validateQuantity(this, this.getAttribute('max'));
+                if (parseInt(this.value) !== newValue) {
+                    setInputValue(newValue);
+                }
+                updateCartItem(this);
+            });
+            
+            // Handle minus button
+            minusBtns[index].addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const currentValue = parseInt(input.value) || lastValidValue;
+                const min = parseInt(input.getAttribute('min')) || 1;
+                
+                console.log('Minus button clicked:', { 
+                    currentValue, 
+                    lastValidValue,
+                    min,
+                    inputValue: input.value 
+                });
+                
+                if (currentValue > min) {
+                    const newValue = currentValue - 1;
+                    setInputValue(newValue);
+                    updateCartItem(input);
+                }
+            });
+            
+            // Handle plus button
+            plusBtns[index].addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const currentValue = parseInt(input.value) || lastValidValue;
+                const max = parseInt(input.getAttribute('max')) || 999;
+                
+                console.log('Plus button clicked:', { 
+                    currentValue, 
+                    lastValidValue,
+                    max,
+                    inputValue: input.value 
+                });
+                
+                if (currentValue < max) {
+                    const newValue = currentValue + 1;
+                    setInputValue(newValue);
+                    updateCartItem(input);
+                }
+            });
+
+            // Prevent invalid input
+            input.addEventListener('input', function() {
+                const value = parseInt(this.value) || lastValidValue;
+                const min = parseInt(this.getAttribute('min')) || 1;
+                const max = parseInt(this.getAttribute('max')) || 999;
+                
+                if (value < min || value > max) {
+                    setInputValue(value);
+                } else {
+                    lastValidValue = value;
+                }
+            });
+
+            // Add keydown handler for arrow keys
+            input.addEventListener('keydown', function(e) {
+                const currentValue = parseInt(this.value) || lastValidValue;
+                const min = parseInt(this.getAttribute('min')) || 1;
+                const max = parseInt(this.getAttribute('max')) || 999;
+                
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (currentValue < max) {
+                        setInputValue(currentValue + 1);
+                        updateCartItem(this);
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (currentValue > min) {
+                        setInputValue(currentValue - 1);
+                        updateCartItem(this);
+                    }
+                }
+            });
+
+            // Add blur handler to ensure valid value on focus out
+            input.addEventListener('blur', function() {
+                const value = parseInt(this.value) || lastValidValue;
+                setInputValue(value);
+                if (value !== lastValidValue) {
+                    updateCartItem(this);
+                }
+            });
+        });
         
-        // Handle shipping location change
+        // Shipping location handling
+        const shippingLocationRadios = document.querySelectorAll('.shipping-location-radio');
         shippingLocationRadios.forEach(radio => {
             radio.addEventListener('change', function() {
+                console.log('Shipping location changed:', this.value);
                 updateShippingCost(this.value);
             });
         });
         
-        // Function to update shipping cost via AJAX
-        function updateShippingCost(location) {
-            $.ajax({
-                url: '{% url "cart_view" %}',
-                type: 'POST',
-                data: {
-                    'shipping_location': location,
-                    'csrfmiddlewaretoken': '{{ csrf_token }}'
-                },
-                success: function(data) {
-                    if (data.success) {
-                        // Update cart summary
-                        $('[data-cart-subtotal]').text('৳' + data.cart_total);
-                        $('#shipping-cost').text('৳' + data.shipping_cost);
-                        $('#order-total').text('৳' + data.grand_total);
-                        
-                        // Also update the cart count in case it changed
-                        $('.cart-count').text(data.cart_count);
-                        
-                        // Show success notification
-                        showNotification('success', 'Shipping location updated');
-                    }
-                },
-                error: function() {
-                    showNotification('error', 'Failed to update shipping cost');
-                }
-            });
-        }
-        
-        for (let i = 0; i < minusBtns.length; i++) {
-            minusBtns[i].addEventListener('click', function() {
-                const input = this.parentNode.querySelector('.quantity-input');
-                const currentValue = parseInt(input.value);
-                if (currentValue > 1) {
-                    input.value = currentValue - 1;
-                    updateCartItem(input);
-                }
-            });
-            
-            plusBtns[i].addEventListener('click', function() {
-                const input = this.parentNode.querySelector('.quantity-input');
-                const currentValue = parseInt(input.value);
-                const max = input.hasAttribute('max') ? parseInt(input.getAttribute('max')) : 999;
+        // Function to update shipping cost
+        async function updateShippingCost(location) {
+            try {
+                console.log('Updating shipping cost for location:', location);
                 
-                if (currentValue < max) {
-                    input.value = currentValue + 1;
-                    updateCartItem(input);
-                }
-            });
-            
-            // Update cart when quantity changes directly
-            quantityInputs[i].addEventListener('change', function() {
-                updateCartItem(this);
-            });
-        }
-        
-        // Function to update cart item
-        function updateCartItem(input) {
-            const row = input.closest('tr');
-            const productId = row.getAttribute('data-product-id');
-            const quantity = parseInt(input.value);
-            
-            if (isNaN(quantity) || quantity < 1) {
-                input.value = 1;
-                return;
-            }
-            
-            const maxQuantity = parseInt(input.getAttribute('max')) || 999;
-            if (quantity > maxQuantity) {
-                input.value = maxQuantity;
-                return;
-            }
-            
-            $.ajax({
-                url: '{% url "cart_update" %}',
-                type: 'POST',
-                data: {
-                    'product_id': productId,
-                    'quantity': quantity,
-                    'csrfmiddlewaretoken': '{{ csrf_token }}'
-                },
-                success: function(data) {
-                    if (data.success) {
-                        // Update cart count in navbar
-                        $('.cart-count').text(data.cart_count);
-                        
-                        // Update subtotal for this item
-                        row.querySelector('.subtotal').textContent = '৳' + data.item_subtotal;
-                        
-                        // Update cart summary
-                        $('[data-cart-subtotal]').text('৳' + data.cart_total);
-                        $('#shipping-cost').text('৳' + data.shipping_cost);
-                        $('#order-total').text('৳' + data.grand_total);
-                        
-                        // Show success notification
-                        showNotification('success', data.message);
-                    }
-                },
-                error: function() {
-                    showNotification('error', 'Failed to update cart');
-                }
-            });
-        }
-        
-        // Remove item functionality
-        const removeButtons = document.querySelectorAll('.remove-item');
-        for (let i = 0; i < removeButtons.length; i++) {
-            removeButtons[i].addEventListener('click', function() {
-                const row = this.closest('tr');
-                const productId = row.getAttribute('data-product-id');
+                const formData = new FormData();
+                formData.append('shipping_location', location);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
                 
-                $.ajax({
-                    url: '{% url "cart_remove" %}',
-                    type: 'POST',
-                    data: {
-                        'product_id': productId,
-                        'csrfmiddlewaretoken': '{{ csrf_token }}'
+                const response = await fetch('{% url "cart_view" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
-                    success: function(data) {
-                        if (data.success) {
-                            // Update cart count in navbar
-                            $('.cart-count').text(data.cart_count);
-                            
-                            // Remove the row from the table
-                            row.remove();
-                            
-                            // Check if cart is empty after removal
-                            const remainingItems = document.querySelectorAll('.cart-item');
-                            if (remainingItems.length === 0) {
-                                // Refresh page to show empty cart state
-                                location.reload();
-                            }
-                            
-                            // Show success notification
-                            showNotification('success', data.message);
-                        }
-                    },
-                    error: function() {
-                        showNotification('error', 'Failed to remove item from cart');
-                    }
+                    body: formData
                 });
-            });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Shipping cost update response:', data);
+                
+                if (data.success) {
+                    // Update cart summary
+                    $('[data-cart-subtotal]').text('৳' + data.cart_total);
+                    $('#shipping-cost').text('৳' + data.shipping_cost);
+                    $('#order-total').text('৳' + data.grand_total);
+                    
+                    // Update cart count
+                    $('.cart-count').text(data.cart_count);
+                    
+                    showNotification('success', 'Shipping location updated');
+                } else {
+                    showNotification('error', data.message || 'Failed to update shipping cost');
+                }
+            } catch (error) {
+                console.error('Shipping cost update error:', error);
+                showNotification('error', 'Failed to update shipping cost');
+            }
         }
+        
+        // Remove item functionality with confirmation and event delegation
+        document.addEventListener('click', async function(e) {
+            const removeButton = e.target.closest('.remove-item');
+            if (!removeButton) return;
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const row = removeButton.closest('tr.cart-item');
+            if (!row) {
+                console.error('Could not find cart item row');
+                showNotification('error', 'Failed to remove item: Invalid cart item');
+                return;
+            }
+            
+            const productId = row.getAttribute('data-product-id');
+            console.log('Found product ID:', productId); // Debug log
+            
+            if (!productId) {
+                console.error('No product ID found for cart item');
+                showNotification('error', 'Failed to remove item: Invalid product');
+                return;
+            }
+            
+            if (!confirm('Are you sure you want to remove this item?')) {
+                return;
+            }
+            
+            // Disable the button to prevent double-clicks
+            removeButton.disabled = true;
+            removeButton.style.pointerEvents = 'none';
+            
+            try {
+                console.log('Sending remove request for product:', productId);
+                
+                const response = await fetch('{% url "cart_remove" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        product_id: parseInt(productId) // Ensure product_id is sent as a number
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log('Remove item response:', data);
+                
+                if (data.success) {
+                    // Update cart count
+                    const cartCount = document.querySelector('.cart-count');
+                    if (cartCount) {
+                        cartCount.textContent = data.cart_count;
+                    }
+                    
+                    // Remove row with smooth animation
+                    row.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                    row.style.opacity = '0';
+                    row.style.transform = 'translateX(20px)';
+                    row.style.height = row.offsetHeight + 'px';
+                    
+                    // Wait for animation to complete
+                    await new Promise(resolve => setTimeout(resolve, 400));
+                    
+                    // Shrink the row height
+                    row.style.height = '0';
+                    row.style.padding = '0';
+                    row.style.margin = '0';
+                    row.style.overflow = 'hidden';
+                    
+                    // Wait for height animation
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    // Remove the row from DOM
+                    row.remove();
+                    
+                    // Check if cart is empty
+                    const remainingItems = document.querySelectorAll('.cart-item');
+                    if (remainingItems.length === 0) {
+                        // Add a small delay before reload to show the animation
+                        setTimeout(() => {
+                            location.reload();
+                        }, 100);
+                    }
+                    
+                    showNotification('success', data.message || 'Item removed successfully');
+                } else {
+                    throw new Error(data.message || 'Failed to remove item');
+                }
+            } catch (error) {
+                console.error('Remove item error:', error);
+                showNotification('error', error.message || 'Failed to remove item');
+                
+                // Re-enable the button on error
+                removeButton.disabled = false;
+                removeButton.style.pointerEvents = 'auto';
+            }
+        });
     });
 </script>
 {% endblock %} 

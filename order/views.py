@@ -64,9 +64,18 @@ def cart_add(request):
 def cart_remove(request):
     if request.method == 'POST':
         try:
-            product_id = request.POST.get('product_id')
+            # Handle both form data and JSON data
+            if request.headers.get('Content-Type') == 'application/json':
+                data = json.loads(request.body)
+                product_id = data.get('product_id')
+            else:
+                product_id = request.POST.get('product_id')
+
             if not product_id:
                 return JsonResponse({'success': False, 'message': 'No product ID provided'})
+            
+            # Convert product_id to string since that's what the cart expects
+            product_id = str(product_id)
             
             # Get the product or return an error response if not found
             try:
@@ -83,6 +92,8 @@ def cart_remove(request):
                 'cart_count': cart.get_total_quantity(),
                 'message': f'{product.name} removed from your cart.'
             })
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
         except Exception as e:
             # Log the error and return a generic error message
             print(f"Error in cart_remove: {str(e)}")
@@ -93,12 +104,20 @@ def cart_remove(request):
 def cart_update(request):
     if request.method == 'POST':
         try:
-            product_id = request.POST.get('product_id')
+            # Handle both form data and JSON data
+            if request.headers.get('Content-Type') == 'application/json':
+                data = json.loads(request.body)
+                product_id = data.get('product_id')
+                quantity = int(data.get('quantity', 1))
+            else:
+                product_id = request.POST.get('product_id')
+                quantity = int(request.POST.get('quantity', 1))
+
             if not product_id:
                 return JsonResponse({'success': False, 'message': 'No product ID provided'})
             
             try:
-                quantity = int(request.POST.get('quantity', 1))
+                quantity = int(quantity)
             except ValueError:
                 return JsonResponse({'success': False, 'message': 'Invalid quantity value'})
                 
@@ -149,6 +168,8 @@ def cart_update(request):
                 'grand_total': float(grand_total),
                 'message': 'Cart updated.'
             })
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'message': 'Invalid JSON data'})
         except Exception as e:
             # Log the error and return a generic error message
             print(f"Error in cart_update: {str(e)}")
@@ -184,40 +205,6 @@ def cart_view(request):
                 print(f"Error processing cart item: {e}")
                 continue
         
-        # Get related products based on cart items
-        related_products = []
-        if cart_items:
-            # Get categories and subcategories from cart items
-            categories = set()
-            subcategories = set()
-            for item in cart_items:
-                try:
-                    product = item['product']
-                    if product.category:
-                        categories.add(product.category)
-                    if product.subcategory:
-                        subcategories.add(product.subcategory)
-                except (AttributeError, TypeError) as e:
-                    print(f"Error getting category/subcategory: {e}")
-                    continue
-
-            # Get products from the same categories and subcategories
-            # Prioritize products from the same subcategory first
-            related_products = Product.objects.filter(
-                Q(subcategory__in=subcategories) | Q(category__in=categories),
-                available=True
-            ).exclude(
-                id__in=[item['product'].id for item in cart_items]
-            ).order_by(
-                # Order by subcategory match first, then random
-                Case(
-                    When(subcategory__in=subcategories, then=0),
-                    default=1,
-                    output_field=IntegerField(),
-                ),
-                '?'
-            )[:4]  # Limit to 4 products
-        
         # Calculate cart totals
         cart_total = 0
         for item in cart_items:
@@ -226,6 +213,18 @@ def cart_view(request):
             except (TypeError, KeyError) as e:
                 print(f"Error calculating cart item subtotal: {e}")
                 continue
+        
+        # Handle shipping location changes
+        if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            try:
+                new_shipping_location = request.POST.get('shipping_location')
+                if new_shipping_location in ['inside_dhaka', 'outside_dhaka']:
+                    shipping_location = new_shipping_location
+                    request.session['shipping_location'] = shipping_location
+                    request.session.modified = True
+                    print(f"Updated shipping location to: {shipping_location}")
+            except Exception as e:
+                print(f"Error updating shipping location: {e}")
         
         # Get shipping cost based on location
         try:
@@ -237,28 +236,15 @@ def cart_view(request):
         discount = 0  # Implement coupon system later
         total = cart_total + shipping_cost - discount
         
-        # Handle shipping location changes
-        if request.method == 'POST' and 'shipping_location' in request.POST:
-            shipping_location = request.POST.get('shipping_location')
-            request.session['shipping_location'] = shipping_location
-            
-            try:
-                shipping_cost = ShippingRate.get_rate(shipping_location)
-            except Exception as e:
-                print(f"Error getting updated shipping rate: {e}")
-                shipping_cost = 0
-                
-            total = cart_total + shipping_cost - discount
-            
-            # For AJAX requests, return updated totals
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': True,
-                    'cart_total': float(cart_total),
-                    'shipping_cost': float(shipping_cost),
-                    'grand_total': float(total),
-                    'cart_count': cart.get_total_quantity()
-                })
+        # For AJAX requests, return updated totals
+        if request.method == 'POST' and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'cart_total': float(cart_total),
+                'shipping_cost': float(shipping_cost),
+                'grand_total': float(total),
+                'cart_count': cart.get_total_quantity()
+            })
         
         # Get shipping rates for display
         try:
@@ -280,7 +266,7 @@ def cart_view(request):
                 'inside_dhaka': inside_dhaka_rate,
                 'outside_dhaka': outside_dhaka_rate
             },
-            'related_products': related_products
+            'related_products': get_related_products(cart_items)
         }
         
         return render(request, 'shop/cart.html', context)
@@ -950,6 +936,51 @@ def cancel_order(request, order_id):
             })
 
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+def get_related_products(cart_items):
+    """
+    Get related products based on cart items' categories and subcategories.
+    Returns up to 4 related products.
+    """
+    try:
+        if not cart_items:
+            return []
+            
+        # Get categories and subcategories from cart items
+        categories = set()
+        subcategories = set()
+        for item in cart_items:
+            try:
+                product = item['product']
+                if product.category:
+                    categories.add(product.category)
+                if product.subcategory:
+                    subcategories.add(product.subcategory)
+            except (AttributeError, TypeError) as e:
+                print(f"Error getting category/subcategory: {e}")
+                continue
+
+        # Get products from the same categories and subcategories
+        # Prioritize products from the same subcategory first
+        related_products = Product.objects.filter(
+            Q(subcategory__in=subcategories) | Q(category__in=categories),
+            available=True
+        ).exclude(
+            id__in=[item['product'].id for item in cart_items]
+        ).order_by(
+            # Order by subcategory match first, then random
+            Case(
+                When(subcategory__in=subcategories, then=0),
+                default=1,
+                output_field=IntegerField(),
+            ),
+            '?'
+        )[:4]  # Limit to 4 products
+        
+        return related_products
+    except Exception as e:
+        print(f"Error getting related products: {e}")
+        return []
 
 
 

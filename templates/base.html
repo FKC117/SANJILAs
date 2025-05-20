@@ -665,44 +665,6 @@
                 });
             });
             
-            // Remove from cart functionality
-            $(document).on('click', '.remove-item', function(e) {
-                e.preventDefault();
-                
-                const productId = $(this).closest('tr').find('.add-to-cart').data('product-id');
-                
-                $.ajax({
-                    url: '{% url "cart_remove" %}',
-                    type: 'POST',
-                    data: {
-                        'product_id': productId,
-                        'csrfmiddlewaretoken': '{{ csrf_token }}'
-                    },
-                    success: function(data) {
-                        if (data.success) {
-                            // Update cart count in navbar
-                            $('.cart-count').text(data.cart_count);
-                            
-                            // Remove the row from the cart table
-                            $(e.target).closest('tr').fadeOut(300, function() {
-                                $(this).remove();
-                                
-                                // If cart is empty, reload the page to show empty cart message
-                                if ($('.cart-item').length === 0) {
-                                    location.reload();
-                                }
-                            });
-                            
-                            // Show success notification
-                            showNotification('success', data.message);
-                        }
-                    },
-                    error: function() {
-                        showNotification('error', 'Failed to remove product from cart');
-                    }
-                });
-            });
-            
             // Update quantity in cart
             // Handle quantity increment
             $(document).on('click', '.quantity-plus', function() {

@@ -512,85 +512,116 @@
     }
     
     document.addEventListener('DOMContentLoaded', function() {
-        // Quantity input handling
+        // Debug logging
+        console.log('Product detail page loaded');
+        
+        // Quantity input handling with validation
         const quantityInput = document.getElementById('quantity-input');
         const minusBtn = document.getElementById('quantity-minus');
         const plusBtn = document.getElementById('quantity-plus');
+        
+        function validateQuantity(input) {
+            const value = parseInt(input.value);
+            const max = input.hasAttribute('max') ? parseInt(input.getAttribute('max')) : 999;
+            const min = parseInt(input.getAttribute('min')) || 1;
+            
+            if (isNaN(value) || value < min) {
+                input.value = min;
+                return min;
+            }
+            if (value > max) {
+                input.value = max;
+                return max;
+            }
+            return value;
+        }
         
         if (minusBtn && plusBtn && quantityInput) {
             minusBtn.addEventListener('click', function() {
                 const currentValue = parseInt(quantityInput.value);
                 if (currentValue > 1) {
                     quantityInput.value = currentValue - 1;
+                    validateQuantity(quantityInput);
                 }
             });
             
             plusBtn.addEventListener('click', function() {
                 const currentValue = parseInt(quantityInput.value);
-                // For preorder products, don't limit the quantity
                 const max = quantityInput.hasAttribute('max') ? parseInt(quantityInput.getAttribute('max')) : 999;
                 
                 if (currentValue < max) {
                     quantityInput.value = currentValue + 1;
+                    validateQuantity(quantityInput);
                 }
+            });
+            
+            // Validate on direct input
+            quantityInput.addEventListener('change', function() {
+                validateQuantity(this);
             });
         }
 
-        // Add to cart functionality
-        const addToCartBtns = document.querySelectorAll('.add-to-cart');
-        if (addToCartBtns) {
-            addToCartBtns.forEach(btn => {
-                btn.addEventListener('click', async function(e) {
-                    e.preventDefault();
-                    
-                    const productId = this.dataset.productId;
-                    const quantity = parseInt(document.getElementById('quantity-input')?.value || 1);
-                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        // Add to cart functionality with improved error handling and debugging
+        const addToCartBtn = document.querySelector('.add-to-cart');
+        if (addToCartBtn) {
+            addToCartBtn.addEventListener('click', async function(e) {
+                e.preventDefault();
+                console.log('Add to cart clicked');
+                
+                // Disable button to prevent double clicks
+                addToCartBtn.disabled = true;
+                
+                const productId = this.dataset.productId;
+                const quantity = validateQuantity(quantityInput);
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                
+                console.log('Adding to cart:', { productId, quantity });
 
-                    try {
-                        const response = await fetch('/order/cart/add/', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': csrfToken,
-                                'X-Requested-With': 'XMLHttpRequest'
-                            },
-                            body: JSON.stringify({
-                                product_id: productId,
-                                quantity: quantity,
-                                is_preorder: true
-                            })
-                        });
+                try {
+                    const response = await fetch('{% url "cart_add" %}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            product_id: productId,
+                            quantity: quantity
+                        })
+                    });
 
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            // Update cart count in navbar
-                            const cartCount = document.querySelector('.cart-count');
-                            if (cartCount) {
-                                cartCount.textContent = data.cart_count;
-                            }
-                            
-                            // Update checkout button count
-                            const checkoutCount = document.querySelector('.checkout-count');
-                            if (checkoutCount) {
-                                checkoutCount.textContent = data.cart_count;
-                            }
-                            
-                            // Show success notification with preorder message if applicable
-                            let message = data.message;
-                            if (data.is_preorder) {
-                                message += ' (Pre-order)';
-                            }
-                            showNotification(message, 'success');
-                        } else {
-                            showNotification(data.message, 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        showNotification('Failed to add product to cart', 'error');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                });
+
+                    const data = await response.json();
+                    console.log('Cart add response:', data);
+                    
+                    if (data.success) {
+                        // Update all cart count elements
+                        const cartCountElements = document.querySelectorAll('.cart-count, .checkout-count');
+                        cartCountElements.forEach(element => {
+                            console.log('Updating cart count element:', element);
+                            element.textContent = data.cart_count;
+                        });
+                        
+                        // Show success notification with preorder message if applicable
+                        let message = data.message;
+                        if (data.is_preorder) {
+                            message += ' (Pre-order)';
+                        }
+                        showNotification(message, 'success');
+                    } else {
+                        showNotification(data.message || 'Failed to add product to cart', 'error');
+                    }
+                } catch (error) {
+                    console.error('Cart add error:', error);
+                    showNotification('Failed to add product to cart', 'error');
+                } finally {
+                    // Re-enable button after request completes
+                    addToCartBtn.disabled = false;
+                }
             });
         }
     });
