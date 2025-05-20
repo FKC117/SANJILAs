@@ -1,6 +1,6 @@
 from django.db import models
 from shop.models import Product
-
+from django.core.validators import MinLengthValidator
 # Create your models here.
 class ShippingRate(models.Model):
     """Model for different shipping rates based on location"""
@@ -61,7 +61,7 @@ class Order(models.Model):
     customer_name = models.CharField(max_length=100)
     customer_phone = models.CharField(max_length=20)
     customer_email = models.EmailField(blank=True, null=True)
-    shipping_address = models.TextField()
+    shipping_address = models.TextField(help_text="Enter the shipping address minimum 10 characters", validators=[MinLengthValidator(10)])
     city = models.CharField(max_length=50)  # Will store city_id
     zone = models.CharField(max_length=50, blank=True, null=True)  # Will store zone_id
     area = models.CharField(max_length=100, blank=True, null=True)  # Will store area_id
