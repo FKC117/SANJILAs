@@ -136,7 +136,9 @@
             </div>
             
             <div class="text-center mt-4">
-                <a href="{% url 'index' %}" class="btn btn-gold">Continue Shopping</a>
+                <a href="{% url 'index' %}" class="btn-continue-shopping">
+                    <i class="fas fa-shopping-bag"></i> Continue Shopping
+                </a>
             </div>
         </div>
     </div>
@@ -160,6 +162,39 @@
         height: 60px;
         object-fit: cover;
         border-radius: 4px;
+    }
+
+    /* Enhanced Continue Shopping Button Styles */
+    .btn-continue-shopping {
+        background-color: #d4af37;
+        color: #1a1a1a;
+        padding: 15px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: inline-block;
+        text-decoration: none;
+        margin-top: 20px;
+    }
+
+    .btn-continue-shopping:hover {
+        background-color: #c4a030;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        color: #1a1a1a;
+    }
+
+    .btn-continue-shopping:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-continue-shopping i {
+        margin-right: 8px;
     }
 </style>
 {% endblock %} 

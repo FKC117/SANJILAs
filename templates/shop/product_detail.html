@@ -107,8 +107,15 @@
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex">
-                        <button type="button" class="btn btn-outline-dark btn-lg me-md-2 mb-2 mb-md-0 add-to-cart" data-product-id="{{ product.id }}">
-                            <i class="fas fa-shopping-cart me-2"></i> Add to Cart
+                        <button type="button" class="btn btn-outline-dark btn-lg me-md-2 mb-2 mb-md-0 add-to-cart" 
+                                data-product-id="{{ product.id }}"
+                                data-is-preorder="{{ product.preorder|lower }}">
+                            <i class="fas fa-shopping-cart me-2"></i> 
+                            {% if product.preorder %}
+                            Pre-order Now
+                            {% else %}
+                            Add to Cart
+                            {% endif %}
                         </button>
                         <a href="{% url 'cart_view' %}" class="btn btn-primary btn-lg checkout-btn">
                             <i class="fas fa-credit-card me-2"></i> Checkout (<span class="checkout-count">{{ cart_count }}</span>)
@@ -561,69 +568,60 @@
             });
         }
 
-        // Add to cart functionality with improved error handling and debugging
-        const addToCartBtn = document.querySelector('.add-to-cart');
-        if (addToCartBtn) {
-            addToCartBtn.addEventListener('click', async function(e) {
-                e.preventDefault();
-                console.log('Add to cart clicked');
-                
-                // Disable button to prevent double clicks
-                addToCartBtn.disabled = true;
-                
-                const productId = this.dataset.productId;
-                const quantity = validateQuantity(quantityInput);
-                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-                
-                console.log('Adding to cart:', { productId, quantity });
+        // Add to cart button click handler
+        document.querySelector('.add-to-cart').addEventListener('click', async function() {
+            const productId = this.dataset.productId;
+            const isPreorder = this.dataset.isPreorder === 'true';
+            const quantity = validateQuantity(quantityInput);
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            try {
+                const response = await fetch('{% url "cart_add" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({
+                        product_id: productId,
+                        quantity: quantity,
+                        is_preorder: isPreorder
+                    })
+                });
 
-                try {
-                    const response = await fetch('{% url "cart_add" %}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken,
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify({
-                            product_id: productId,
-                            quantity: quantity
-                        })
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    console.log('Cart add response:', data);
-                    
-                    if (data.success) {
-                        // Update all cart count elements
-                        const cartCountElements = document.querySelectorAll('.cart-count, .checkout-count');
-                        cartCountElements.forEach(element => {
-                            console.log('Updating cart count element:', element);
-                            element.textContent = data.cart_count;
-                        });
-                        
-                        // Show success notification with preorder message if applicable
-                        let message = data.message;
-                        if (data.is_preorder) {
-                            message += ' (Pre-order)';
-                        }
-                        showNotification(message, 'success');
-                    } else {
-                        showNotification(data.message || 'Failed to add product to cart', 'error');
-                    }
-                } catch (error) {
-                    console.error('Cart add error:', error);
-                    showNotification('Failed to add product to cart', 'error');
-                } finally {
-                    // Re-enable button after request completes
-                    addToCartBtn.disabled = false;
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            });
-        }
+
+                const data = await response.json();
+                console.log('Cart add response:', data);
+                
+                if (data.success) {
+                    // Update all cart count elements
+                    const cartCountElements = document.querySelectorAll('.cart-count, .checkout-count');
+                    cartCountElements.forEach(element => {
+                        console.log('Updating cart count element:', element);
+                        element.textContent = data.cart_count;
+                    });
+                    
+                    // Show success notification with preorder message if applicable
+                    let message = data.message;
+                    if (data.is_preorder) {
+                        message += ' (Pre-order)';
+                        if ('{{ product.preorder_delivery_time }}') {
+                            message += ` - Delivery in {{ product.preorder_delivery_time }}`;
+                        }
+                    }
+                    showNotification(message, 'success');
+                } else {
+                    showNotification(data.message || 'Failed to add product to cart', 'error');
+                }
+            } catch (error) {
+                console.error('Add to cart error:', error);
+                showNotification('Failed to add product to cart', 'error');
+            }
+        });
     });
 
     // Function to show notification
