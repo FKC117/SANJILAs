@@ -5,8 +5,14 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import get_object_or_404
 from .api_client import create_order, get_default_store
 from order.models import Order
-from .models import PathaoCity, PathaoZone, PathaoArea
+from .models import PathaoCity, PathaoZone, PathaoArea, PathaoOrder, PathaoCredentials, PathaoOrderEvent
 import logging
+import hmac
+import hashlib
+import json
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -186,3 +192,172 @@ def reinitiate_pathao_order(request, order_id):
         return JsonResponse({
             'error': 'An unexpected error occurred'
         }, status=500)
+
+@csrf_exempt
+def pathao_webhook(request):
+    """
+    Handle Pathao webhook events.
+    Requirements:
+    1. Return 202 status code
+    2. Include X-Pathao-Merchant-Webhook-Integration-Secret header
+    3. Handle all event types
+    4. Verify webhook signature
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    # Get webhook secret from credentials
+    try:
+        credentials = PathaoCredentials.objects.get(pk=1)
+        webhook_secret = credentials.webhook_secret
+        if not webhook_secret:
+            logging.error("No webhook secret configured")
+            return JsonResponse({'error': 'Webhook not configured'}, status=500)
+    except PathaoCredentials.DoesNotExist:
+        logging.error("Pathao credentials not found")
+        return JsonResponse({'error': 'Webhook not configured'}, status=500)
+
+    # Verify signature
+    signature = request.headers.get('X-PATHAO-Signature')
+    if not signature:
+        logging.error("No signature in webhook request")
+        return JsonResponse({'error': 'Invalid signature'}, status=400)
+
+    # Verify payload signature
+    payload = request.body
+    expected_signature = hmac.new(
+        webhook_secret.encode('utf-8'),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(signature, expected_signature):
+        logging.error("Invalid webhook signature")
+        return JsonResponse({'error': 'Invalid signature'}, status=400)
+
+    try:
+        data = json.loads(payload)
+        event = data.get('event')
+        consignment_id = data.get('consignment_id')
+        merchant_order_id = data.get('merchant_order_id')
+        updated_at = data.get('updated_at')
+        store_id = data.get('store_id')
+        delivery_fee = data.get('delivery_fee')
+
+        logging.info(f"Received webhook event: {event}")
+        logging.debug(f"Webhook payload: {json.dumps(data, indent=2)}")
+
+        # Handle different event types
+        if event == 'webhook_integration':
+            # Initial webhook integration test
+            response = JsonResponse({'status': 'success'}, status=202)
+            response['X-Pathao-Merchant-Webhook-Integration-Secret'] = 'f3992ecc-59da-4cbe-a049-a13da2018d51'
+            return response
+
+        # Find the order
+        try:
+            pathao_order = PathaoOrder.objects.get(consignment_id=consignment_id)
+        except PathaoOrder.DoesNotExist:
+            logging.error(f"Order not found for consignment ID: {consignment_id}")
+            return JsonResponse({'error': 'Order not found'}, status=404)
+
+        # Store the event
+        PathaoOrderEvent.objects.create(
+            pathao_order=pathao_order,
+            event_type=event,
+            event_data=data
+        )
+
+        # Handle payment invoice event
+        if event == 'payment.invoice' and delivery_fee:
+            try:
+                from accounts.models import Receivable
+                from shop.models import Customer
+                
+                # Get or create Pathao as a customer
+                pathao_customer, _ = Customer.objects.get_or_create(
+                    name='Pathao',
+                    defaults={
+                        'contact_person': 'Pathao Support',
+                        'phone': '09678-111111',
+                        'email': 'support@pathao.com'
+                    }
+                )
+                
+                # Create receivable record for the order amount
+                main_order = pathao_order.order
+                if main_order:
+                    Receivable.objects.create(
+                        customer=pathao_customer,
+                        invoice_number=f"PATH-{consignment_id}",
+                        date=timezone.now().date(),
+                        due_date=timezone.now().date() + timezone.timedelta(days=30),
+                        amount=main_order.total_amount,  # Full order amount
+                        status='PENDING',
+                        notes=f"Order {consignment_id} - Pathao COD collection"
+                    )
+                    
+                    # Create another receivable for delivery fee (if we're paying it)
+                    if delivery_fee:
+                        Receivable.objects.create(
+                            customer=pathao_customer,
+                            invoice_number=f"PATH-DEL-{consignment_id}",
+                            date=timezone.now().date(),
+                            due_date=timezone.now().date() + timezone.timedelta(days=30),
+                            amount=Decimal(str(delivery_fee)),
+                            status='PENDING',
+                            notes=f"Delivery fee for order {consignment_id}"
+                        )
+                    
+                    logging.info(f"Created receivable records for Pathao order {consignment_id}")
+            except Exception as e:
+                logging.error(f"Error creating receivable records: {str(e)}")
+
+        # Update order status based on event
+        status_mapping = {
+            'order.created': 'pending',
+            'order.updated': 'processing',
+            'pickup.requested': 'processing',
+            'pickup.assigned': 'processing',
+            'pickup.completed': 'processing',
+            'pickup.failed': 'failed',
+            'pickup.cancelled': 'cancelled',
+            'sorting.hub': 'processing',
+            'in.transit': 'processing',
+            'last.mile.hub': 'processing',
+            'delivery.assigned': 'processing',
+            'delivery.completed': 'delivered',
+            'delivery.partial': 'partial',
+            'return.requested': 'returned',
+            'delivery.failed': 'failed',
+            'order.on_hold': 'on_hold',
+            'payment.invoice': 'processing',
+            'return.paid': 'returned',
+            'exchange.requested': 'exchange'
+        }
+
+        new_status = status_mapping.get(event)
+        if new_status:
+            pathao_order.order_status = new_status
+            pathao_order.order_status_slug = new_status
+            pathao_order.pathao_updated_at = timezone.now()
+            pathao_order.save()
+
+            # Update main order status if needed
+            if new_status in ['delivered', 'cancelled', 'returned']:
+                main_order = pathao_order.order
+                if main_order:
+                    main_order.status = new_status
+                    main_order.save()
+
+        # Return success response with required headers
+        response = JsonResponse({'status': 'success'}, status=202)
+        response['X-Pathao-Merchant-Webhook-Integration-Secret'] = 'f3992ecc-59da-4cbe-a049-a13da2018d51'
+        return response
+
+    except json.JSONDecodeError:
+        logging.error("Invalid JSON payload")
+        return JsonResponse({'error': 'Invalid payload'}, status=400)
+    except Exception as e:
+        logging.error(f"Error processing webhook: {str(e)}")
+        return JsonResponse({'error': 'Internal server error'}, status=500)

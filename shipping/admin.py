@@ -9,7 +9,7 @@ class PathaoCredentialsAdmin(admin.ModelAdmin):
     list_display = ['client_id', 'default_username']
     fieldsets = (
         ('Production Credentials', {
-            'fields': ('client_id', 'client_secret', 'default_username', 'default_password')
+            'fields': ('client_id', 'client_secret', 'default_username', 'default_password', 'webhook_secret', 'webhook_url')
         }),
         ('Test Credentials', {
             'fields': ('test_client_id', 'test_client_secret', 'test_username', 'test_password')

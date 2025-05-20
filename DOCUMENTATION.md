@@ -13,6 +13,8 @@
 10. [Development Guidelines](#development-guidelines)
 11. [Deployment](#deployment)
 12. [Troubleshooting](#troubleshooting)
+13. [Sales Data Views](#sales-data-views)
+14. [Pathao Integration](#pathao-integration)
 
 ## Project Overview
 SANJILA'S is a Django-based e-commerce platform specializing in fashion retail. The project implements a full-featured online shopping experience with product management, shopping cart functionality, order processing, and delivery integration.
@@ -1215,3 +1217,440 @@ class Cart:
 
 ### Business Logic and Implementation Details (update)
 - All business logic for stock changes, including order fulfillment, manual adjustments, and returns, is now centralized in the `order` app's `StockMovement` model. This ensures a single audit trail and simplifies reporting and debugging.
+
+## Sales Data Views
+
+### get_sales_data View
+- **Purpose**: Retrieves sales data with date filtering
+- **Access**: Superuser only
+- **Date Handling**:
+  - Uses timezone-aware datetime comparisons
+  - Converts input dates to timezone-aware datetimes using `timezone.make_aware()`
+  - Handles both date range and days-based filtering
+- **Data Processing**:
+  - Calculates sales breakdown by order status
+  - Computes daily sales totals
+  - Includes expense calculations
+  - Provides profit analysis
+- **Response Format**:
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "daily_data": [
+        {
+          "date": "YYYY-MM-DD",
+          "sales": float,
+          "orders": integer
+        }
+      ],
+      "summary": {
+        "total_sales": float,
+        "total_orders": integer,
+        "total_cost": float,
+        "gross_profit": float,
+        "net_profit": float,
+        "total_expenses": float,
+        "expenses": {
+          "salary": float,
+          "advertisement": float,
+          "shipping": float,
+          "other": float
+        },
+        "status_breakdown": {
+          "delivered": {
+            "sales": float,
+            "orders": integer,
+            "percentage": float
+          },
+          "shipped": {...},
+          "pending": {...}
+        }
+      }
+    }
+  }
+  ```
+
+### get_product_performance View
+- **Purpose**: Retrieves product performance data with date filtering
+- **Access**: Superuser only
+- **Date Handling**:
+  - Uses timezone-aware datetime comparisons
+  - Handles both date range and days-based filtering
+- **Data Processing**:
+  - Calculates product-specific analytics
+  - Computes sales, quantity, and cost metrics
+  - Includes profit calculations
+- **Response Format**:
+  ```json
+  {
+    "status": "success",
+    "data": {
+      "products": [
+        {
+          "name": string,
+          "category": string,
+          "total_sales": float,
+          "total_quantity": integer,
+          "total_cost": float,
+          "avg_daily_sales": float,
+          "avg_daily_quantity": float,
+          "profit": float
+        }
+      ],
+      "summary": {
+        "total_sales": float,
+        "total_quantity": integer,
+        "total_cost": float,
+        "gross_profit": float,
+        "net_profit": float,
+        "total_expenses": float,
+        "expenses": {
+          "salary": float,
+          "advertisement": float,
+          "shipping": float,
+          "other": float
+        }
+      }
+    }
+  }
+  ```
+
+### Date Range Helper Functions
+
+#### get_date_range
+- **Purpose**: Helper function to get date range from request parameters
+- **Parameters**:
+  - `from_date` and `to_date`: Optional date parameters in YYYY-MM-DD format
+  - `days`: Optional parameter for number of days to look back
+- **Default Behavior**: Returns last 30 days if no valid dates provided
+- **Returns**: Tuple of (start_date, end_date) as timezone-aware datetime objects
+
+#### get_daily_summary
+- **Purpose**: Get summary of daily financial data
+- **Parameters**: Single date
+- **Returns**: Dictionary with daily totals for sales, orders, profits, and expenses
+
+#### get_monthly_summary
+- **Purpose**: Get summary of monthly financial data
+- **Parameters**: Year and month
+- **Returns**: Dictionary with monthly totals and profit margin
+
+#### get_period_summary
+- **Purpose**: Get summary of financial data for a date range
+- **Parameters**: Start and end dates
+- **Returns**: Dictionary with period totals for sales, orders, profits, and expenses
+
+### Timezone Handling
+- All date comparisons use timezone-aware datetime objects
+- Input dates are converted to timezone-aware datetimes using `timezone.make_aware()`
+- Date ranges are properly handled with start of day (00:00:00) and end of day (23:59:59)
+- Ensures consistent date handling across different timezones
+
+### Error Handling
+- Comprehensive error handling with detailed logging
+- Returns appropriate error messages with status codes
+- Includes error type and traceback information for debugging
+- Validates date formats and parameters
+- Handles missing or invalid data gracefully
+
+## Pathao Integration
+
+### API Integration
+- Uses Pathao's Merchant API for order creation and management
+- Supports both test and production environments
+- Handles location data (cities, zones, areas)
+- Manages store information and credentials
+
+### Token Management
+- **Token Storage**: Uses `PathaoToken` model to store access and refresh tokens
+- **Token Expiration**: 
+  - Access tokens expire after 1 hour
+  - System maintains a 5-minute buffer before expiration
+  - Expiration time stored in `expires_at` field
+- **Token Refresh**:
+  - Automatic refresh using refresh token
+  - Falls back to new token generation if refresh fails
+  - Handled by `get_access_token()` function
+- **Token Security**:
+  - Tokens stored securely in database
+  - Access token used for API requests
+  - Refresh token used for token renewal
+
+### Webhook Integration
+- **Webhook Configuration**:
+  - Webhook secret stored in `PathaoCredentials` model
+  - Webhook URL configurable for different environments
+  - Supports both test and production webhooks
+- **Webhook Security**:
+  - Uses HMAC-SHA256 for signature verification
+  - Verifies webhook authenticity using stored secret
+  - Requires HTTPS in production
+- **Webhook Requirements**:
+  1. URL must be reachable
+  2. URL must resolve within 3 redirections
+  3. SSL certificate must be valid (for HTTPS)
+  4. Response must be within timeout
+  5. Must return 202 status code
+  6. Must include `X-Pathao-Merchant-Webhook-Integration-Secret` header
+  7. Header value must be `f3992ecc-59da-4cbe-a049-a13da2018d51`
+
+- **Webhook Events**:
+  Pathao sends webhook notifications for the following events:
+
+  1. **Order Events**:
+     - `order.created`: New order created
+     - `order.updated`: Order information updated
+     - `order.on_hold`: Order placed on hold
+
+  2. **Pickup Events**:
+     - `pickup.requested`: Pickup requested
+     - `pickup.assigned`: Assigned for pickup
+     - `pickup.completed`: Pickup completed
+     - `pickup.failed`: Pickup failed
+     - `pickup.cancelled`: Pickup cancelled
+
+  3. **Transit Events**:
+     - `sorting.hub`: Package at sorting hub
+     - `in.transit`: Package in transit
+     - `last.mile.hub`: Received at last mile hub
+
+  4. **Delivery Events**:
+     - `delivery.assigned`: Assigned for delivery
+     - `delivery.completed`: Successfully delivered
+     - `delivery.partial`: Partially delivered
+     - `delivery.failed`: Delivery failed
+
+  5. **Return Events**:
+     - `return.requested`: Return requested
+     - `return.paid`: Return payment received
+
+  6. **Payment Events**:
+     - `payment.invoice`: Payment invoice generated
+
+  7. **Exchange Events**:
+     - `exchange.requested`: Exchange requested
+
+  Each event updates the order status in our system:
+  ```python
+  status_mapping = {
+      'order.created': 'pending',
+      'order.updated': 'processing',
+      'pickup.requested': 'processing',
+      'pickup.assigned': 'processing',
+      'pickup.completed': 'processing',
+      'pickup.failed': 'failed',
+      'pickup.cancelled': 'cancelled',
+      'sorting.hub': 'processing',
+      'in.transit': 'processing',
+      'last.mile.hub': 'processing',
+      'delivery.assigned': 'processing',
+      'delivery.completed': 'delivered',
+      'delivery.partial': 'partial',
+      'return.requested': 'returned',
+      'delivery.failed': 'failed',
+      'order.on_hold': 'on_hold',
+      'payment.invoice': 'processing',
+      'return.paid': 'returned',
+      'exchange.requested': 'exchange'
+  }
+  ```
+
+  **Event Flow**:
+  ```
+  Order Created
+      ↓
+  Pickup Requested → Assigned For Pickup → Pickup
+      ↓
+  At the Sorting Hub → In Transit → Last Mile Hub
+      ↓
+  Assigned for Delivery → Delivered
+      ↓
+  (Optional) Return/Exchange
+  ```
+
+  **Status Updates**:
+  - Each event updates the `PathaoOrder` status
+  - Critical events (delivered, cancelled, returned) also update the main `Order` status
+  - All status changes are logged with timestamps
+  - Status history is maintained for tracking
+
+  **Event Handling**:
+  ```python
+  # Example event payload
+  {
+      "consignment_id": "DL121224VS8TTJ",
+      "merchant_order_id": "TS-123",
+      "updated_at": "2024-12-27 23:49:43",
+      "timestamp": "2024-12-27T17:49:43+00:00",
+      "store_id": 130820,
+      "event": "delivery.completed",
+      "delivery_fee": 83.46
+  }
+
+  # System response
+  {
+      "status": "success"
+  }
+  Status Code: 202
+  Headers: X-Pathao-Merchant-Webhook-Integration-Secret: f3992ecc-59da-4cbe-a049-a13da2018d51
+  ```
+
+- **Webhook Response Codes**:
+  - 202: Success (with required headers)
+  - 400: Invalid signature or payload
+  - 404: Order not found
+  - 405: Method not allowed
+  - 500: Server error
+
+- **Webhook Testing**:
+  ```bash
+  # Start Django server
+  python manage.py runserver
+
+  # In another terminal, test webhook
+  python manage.py shell -c "from shipping.test_pathao import test_webhook_locally; test_webhook_locally()"
+  ```
+  Expected Test Output:
+  ```
+  INFO - Using consignment ID: DS190525X3B8JH
+  DEBUG - Starting new HTTP connection (1): localhost:8000
+  DEBUG - http://localhost:8000 "POST /shipping/api/webhook/pathao/ HTTP/1.1" 202 21
+  INFO - Webhook test response: 202
+  INFO - Response content: {"status": "success"}
+  ```
+
+- **Production Setup**:
+  1. Update webhook URL in database to production domain
+  2. Configure same webhook secret in Pathao dashboard
+  3. Enable HTTPS on production server
+  4. Test webhook with real orders
+  5. Verify all required headers and status codes
+
+- **Error Handling**:
+  - Comprehensive error logging
+  - Graceful fallback mechanisms
+  - Proper exception handling
+  - Detailed error messages
+
+- **Security Considerations**:
+  - Secure token storage
+  - Webhook signature verification
+  - HTTPS requirement in production
+  - No sensitive data in logs
+
+### Event Tracking System
+The system now includes comprehensive event tracking for all Pathao webhook events:
+
+1. **PathaoOrderEvent Model**:
+   ```python
+   class PathaoOrderEvent(models.Model):
+       pathao_order = models.ForeignKey(PathaoOrder, related_name='events')
+       event_type = models.CharField(max_length=50, choices=EVENT_TYPES)
+       event_data = models.JSONField(help_text="Raw event data from webhook")
+       created_at = models.DateTimeField(auto_now_add=True)
+   ```
+
+2. **Event Types**:
+   - Order Events: created, updated, on hold
+   - Pickup Events: requested, assigned, completed, failed, cancelled
+   - Transit Events: sorting hub, in transit, last mile hub
+   - Delivery Events: assigned, completed, partial, failed
+   - Return Events: requested, paid
+   - Payment Events: invoice
+   - Exchange Events: requested
+
+3. **Event History Access**:
+   ```python
+   # Get all events for an order
+   events = pathao_order.events.all()
+
+   # Get specific event types
+   pickup_events = pathao_order.events.filter(event_type='pickup.requested')
+
+   # Get latest event
+   latest_event = pathao_order.events.first()
+   ```
+
+4. **Status Updates**:
+   - Each event updates the `PathaoOrder` status
+   - Critical events update the main `Order` status
+   - Status history is maintained through events
+   - All status changes are timestamped
+
+5. **Event Data Storage**:
+   - Raw webhook data is stored in `event_data` JSONField
+   - Event type is stored in standardized format
+   - Events are ordered by creation time
+   - Full event history is maintained
+
+6. **Usage Examples**:
+   ```python
+   # Track order progress
+   order_events = pathao_order.events.all()
+   for event in order_events:
+       print(f"{event.created_at}: {event.event_type}")
+
+   # Get delivery status
+   delivery_events = pathao_order.events.filter(
+       event_type__in=['delivery.assigned', 'delivery.completed']
+   )
+
+   # Check for issues
+   failed_events = pathao_order.events.filter(
+       event_type__in=['pickup.failed', 'delivery.failed']
+   )
+   ```
+
+7. **Admin Interface**:
+   - Events are visible in the Django admin
+   - Events are linked to their respective orders
+   - Full event data is accessible
+   - Events can be filtered and searched
+
+8. **Event Flow**:
+   ```
+   Order Created
+       ↓
+   Pickup Requested → Assigned For Pickup → Pickup
+       ↓
+   At the Sorting Hub → In Transit → Last Mile Hub
+       ↓
+   Assigned for Delivery → Delivered
+       ↓
+   (Optional) Return/Exchange
+   ```
+
+9. **Status Mapping**:
+   ```python
+   status_mapping = {
+       'order.created': 'pending',
+       'order.updated': 'processing',
+       'pickup.requested': 'processing',
+       'pickup.assigned': 'processing',
+       'pickup.completed': 'processing',
+       'pickup.failed': 'failed',
+       'pickup.cancelled': 'cancelled',
+       'sorting.hub': 'processing',
+       'in.transit': 'processing',
+       'last.mile.hub': 'processing',
+       'delivery.assigned': 'processing',
+       'delivery.completed': 'delivered',
+       'delivery.partial': 'partial',
+       'return.requested': 'returned',
+       'delivery.failed': 'failed',
+       'order.on_hold': 'on_hold',
+       'payment.invoice': 'processing',
+       'return.paid': 'returned',
+       'exchange.requested': 'exchange'
+   }
+   ```
+
+10. **Webhook Response**:
+    ```json
+    {
+        "status": "success"
+    }
+    Status Code: 202
+    Headers: X-Pathao-Merchant-Webhook-Integration-Secret: f3992ecc-59da-4cbe-a049-a13da2018d51
+    ```

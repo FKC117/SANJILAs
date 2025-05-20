@@ -16,6 +16,8 @@ class PathaoCredentials(models.Model):
     test_client_secret = models.CharField(max_length=255, blank=True, null=True, help_text="Pathao Test API Client Secret")
     test_username = models.CharField(max_length=255, blank=True, null=True, help_text="Test username for token issuance")
     test_password = models.CharField(max_length=255, blank=True, null=True, help_text="Test password for token issuance")
+    webhook_url = models.CharField(max_length=255, blank=True, null=True, help_text="Webhook URL for Pathao")
+    webhook_secret = models.CharField(max_length=255, blank=True, null=True, help_text="Secret key for verifying webhook signatures")
 
     class Meta:
         verbose_name_plural = "Pathao Credentials"
@@ -143,3 +145,41 @@ class PathaoOrder(models.Model):
 
     def __str__(self):
         return f"Pathao Order: {self.consignment_id or self.merchant_order_id}"
+
+class PathaoOrderEvent(models.Model):
+    """
+    Tracks all webhook events for a Pathao order.
+    """
+    EVENT_TYPES = [
+        ('order.created', 'Order Created'),
+        ('order.updated', 'Order Updated'),
+        ('pickup.requested', 'Pickup Requested'),
+        ('pickup.assigned', 'Assigned For Pickup'),
+        ('pickup.completed', 'Pickup Completed'),
+        ('pickup.failed', 'Pickup Failed'),
+        ('pickup.cancelled', 'Pickup Cancelled'),
+        ('sorting.hub', 'At the Sorting Hub'),
+        ('in.transit', 'In Transit'),
+        ('last.mile.hub', 'Received at Last Mile Hub'),
+        ('delivery.assigned', 'Assigned for Delivery'),
+        ('delivery.completed', 'Delivered'),
+        ('delivery.partial', 'Partial Delivery'),
+        ('return.requested', 'Return'),
+        ('delivery.failed', 'Delivery Failed'),
+        ('order.on_hold', 'On Hold'),
+        ('payment.invoice', 'Payment Invoice'),
+        ('return.paid', 'Paid Return'),
+        ('exchange.requested', 'Exchange')
+    ]
+
+    pathao_order = models.ForeignKey(PathaoOrder, on_delete=models.CASCADE, related_name='events')
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPES)
+    event_data = models.JSONField(help_text="Raw event data from webhook")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name_plural = "Pathao Order Events"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.pathao_order.consignment_id} - {self.event_type} at {self.created_at}"

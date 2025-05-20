@@ -4,6 +4,10 @@ import django
 import logging
 import json
 import time
+import requests
+import hmac
+import hashlib
+from django.utils import timezone
 
 # Configure logging to show more details
 logging.basicConfig(
@@ -31,7 +35,7 @@ from shipping.api_client import (
     create_order,
     get_order_short_info
 )
-from shipping.models import PathaoStore, PathaoCredentials, PathaoToken
+from shipping.models import PathaoStore, PathaoCredentials, PathaoToken, PathaoOrder
 
 def debug_response(response, step_name):
     """Helper function to debug API responses"""
@@ -59,6 +63,9 @@ def update_credentials():
         credentials.client_secret = "rlC2iyALBeELbxfUS4LpdJAfmoKAqH3bpHNbadjk"
         credentials.default_username = "sanjila901@gmail.com"
         credentials.default_password = "afroafri117!"
+        # Add webhook configuration
+        credentials.webhook_secret = "egjnlvlyVeqk5lmMIfadFdDqOgZ3tjmdnp5lUIQW4LI"
+        credentials.webhook_url = "https://your-domain.com/shipping/api/webhook/pathao/"  # Update this when deploying
         credentials.save()
         logging.info("✅ Credentials updated successfully")
     except Exception as e:
@@ -205,6 +212,69 @@ def setup_production_environment():
         store_obj.save()
     
     logging.info(f"✅ Successfully set up production environment with store: {store_obj.store_name} (ID: {store_obj.store_id})")
+
+def test_webhook_locally():
+    """
+    Test webhook functionality locally by simulating a webhook request.
+    This is for development/testing purposes only.
+    """
+    # Get credentials
+    try:
+        credentials = PathaoCredentials.objects.get(pk=1)
+        webhook_secret = credentials.webhook_secret
+        if not webhook_secret:
+            logging.error("❌ No webhook secret configured")
+            return False
+    except PathaoCredentials.DoesNotExist:
+        logging.error("❌ Pathao credentials not found")
+        return False
+    
+    # Get a real consignment ID from the database
+    try:
+        pathao_order = PathaoOrder.objects.filter(consignment_id__isnull=False).first()
+        if not pathao_order:
+            logging.error("❌ No Pathao orders found in database")
+            return False
+        consignment_id = pathao_order.consignment_id
+        logging.info(f"Using consignment ID: {consignment_id}")
+    except Exception as e:
+        logging.error(f"❌ Error getting consignment ID: {str(e)}")
+        return False
+    
+    # Create test webhook payload
+    payload = {
+        "consignment_id": consignment_id,
+        "status": "Delivered",
+        "status_slug": "delivered",
+        "updated_at": timezone.now().isoformat()
+    }
+    
+    # Generate signature
+    payload_bytes = json.dumps(payload).encode('utf-8')
+    signature = hmac.new(
+        webhook_secret.encode('utf-8'),
+        payload_bytes,
+        hashlib.sha256
+    ).hexdigest()
+    
+    # Send test webhook request
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Pathao-Signature': signature
+    }
+    
+    try:
+        response = requests.post(
+            'http://localhost:8000/shipping/api/webhook/pathao/',
+            headers=headers,
+            json=payload
+        )
+        logging.info(f"Webhook test response: {response.status_code}")
+        logging.info(f"Response content: {response.text}")
+        return response.status_code == 200
+    except Exception as e:
+        logging.error(f"❌ Failed to test webhook: {str(e)}")
+        return False
 
 if __name__ == "__main__":
     # First run the test
