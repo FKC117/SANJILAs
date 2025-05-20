@@ -140,7 +140,11 @@
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h5 class="card-title">Total Revenue</h5>
-                    <h3 class="card-text">${{ total_revenue|floatformat:2|intcomma }}</h3>
+                    <h3 class="card-text">BDT {{ total_revenue|floatformat:2|intcomma }}</h3>
+                    <div class="small mt-2">
+                        <div>Orders: BDT {{ order_revenue|floatformat:2|intcomma }}</div>
+                        <div>Manual: BDT {{ manual_revenue|floatformat:2|intcomma }}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -148,7 +152,7 @@
             <div class="card bg-success text-white">
                 <div class="card-body">
                     <h5 class="card-title">Net Profit</h5>
-                    <h3 class="card-text">${{ net_profit|floatformat:2|intcomma }}</h3>
+                    <h3 class="card-text">BDT {{ net_profit|floatformat:2|intcomma }}</h3>
                 </div>
             </div>
         </div>
@@ -156,7 +160,7 @@
             <div class="card bg-warning text-white">
                 <div class="card-body">
                     <h5 class="card-title">Total Receivables</h5>
-                    <h3 class="card-text">${{ total_receivables|floatformat:2|intcomma }}</h3>
+                    <h3 class="card-text">BDT {{ total_receivables|floatformat:2|intcomma }}</h3>
                 </div>
             </div>
         </div>
@@ -164,7 +168,7 @@
             <div class="card bg-danger text-white">
                 <div class="card-body">
                     <h5 class="card-title">Total Payables</h5>
-                    <h3 class="card-text">${{ total_payables|floatformat:2|intcomma }}</h3>
+                    <h3 class="card-text">BDT {{ total_payables|floatformat:2|intcomma }}</h3>
                 </div>
             </div>
         </div>
@@ -219,7 +223,7 @@
                                     <td>{{ transaction.date|date:"M d, Y" }}</td>
                                     <td>{{ transaction.account.name }}</td>
                                     <td>{{ transaction.type }}</td>
-                                    <td>${{ transaction.amount|floatformat:2|intcomma }}</td>
+                                    <td>BDT {{ transaction.amount|floatformat:2|intcomma }}</td>
                                     <td>{{ transaction.description }}</td>
                                 </tr>
                                 {% empty %}
@@ -245,12 +249,14 @@
                         <a href="{% url 'accounts:receivables' %}" class="list-group-item list-group-item-action">
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1">{{ receivable.customer.name }}</h6>
-                                <small>${{ receivable.balance|floatformat:2|intcomma }}</small>
+                                <small>BDT {{ receivable.balance|floatformat:2|intcomma }}</small>
                             </div>
                             <small>Due: {{ receivable.due_date|date:"M d, Y" }}</small>
                         </a>
                         {% empty %}
-                        <div class="text-center">No overdue receivables</div>
+                        <div class="text-center py-3">
+                            <p class="text-muted mb-0">No overdue receivables</p>
+                        </div>
                         {% endfor %}
                     </div>
                 </div>

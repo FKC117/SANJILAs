@@ -6,6 +6,7 @@ from django.utils import timezone
 from datetime import timedelta
 from django.core.validators import MinValueValidator
 from decimal import Decimal
+from django.core.exceptions import ValidationError
 
 class AdminActivity(models.Model):
     ACTIVITY_TYPES = [
@@ -389,27 +390,36 @@ class Payable(models.Model):
 class Expense(models.Model):
     """Expense tracking"""
     EXPENSE_TYPES = [
-        ('OPERATING', 'Operating Expense'),
-        ('PAYROLL', 'Payroll'),
-        ('RENT', 'Rent'),
-        ('UTILITIES', 'Utilities'),
-        ('MARKETING', 'Marketing'),
-        ('OTHER', 'Other'),
+        ('operational', 'Operational'),
+        ('salary', 'Salary'),
+        ('rent', 'Rent'),
+        ('utilities', 'Utilities'),
+        ('other', 'Other'),
     ]
-    
-    date = models.DateField()
+
+    EXPENSE_CATEGORIES = [
+        ('fixed', 'Fixed'),
+        ('variable', 'Variable'),
+    ]
+
     type = models.CharField(max_length=20, choices=EXPENSE_TYPES)
-    account = models.ForeignKey(Account, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    date = models.DateField()
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField()
-    receipt = models.FileField(upload_to='expense_receipts/', blank=True)
-    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approved_expenses')
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_expenses')
+    category = models.CharField(max_length=20, choices=EXPENSE_CATEGORIES, default='variable')
+    is_paid = models.BooleanField(default=False)
+    account = models.ForeignKey(Account, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = 'Expense'
+        verbose_name_plural = 'Expenses'
+
     def __str__(self):
-        return f"{self.date} - {self.type} - {self.amount}"
+        return f"{self.get_type_display()} - {self.amount} BDT"
 
 class Revenue(models.Model):
     """Revenue tracking"""
@@ -466,3 +476,43 @@ class BalanceSheetReport(FinancialReport):
 
     def __str__(self):
         return f"Balance Sheet - {self.start_date} to {self.end_date}"
+
+class Payment(models.Model):
+    PAYMENT_METHODS = [
+        ('cash', 'Cash'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('check', 'Check'),
+        ('credit_card', 'Credit Card'),
+        ('other', 'Other'),
+    ]
+
+    payable = models.ForeignKey(Payable, on_delete=models.CASCADE, null=True, blank=True)
+    receivable = models.ForeignKey(Receivable, on_delete=models.CASCADE, null=True, blank=True)
+    expense = models.ForeignKey(Expense, on_delete=models.CASCADE, null=True, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    date = models.DateField()
+    method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    reference = models.CharField(max_length=100, blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-date', '-created_at']
+        verbose_name = 'Payment'
+        verbose_name_plural = 'Payments'
+
+    def __str__(self):
+        if self.payable:
+            return f"Payment for Payable #{self.payable.id}"
+        elif self.receivable:
+            return f"Payment for Receivable #{self.receivable.id}"
+        elif self.expense:
+            return f"Payment for Expense #{self.expense.id}"
+        return f"Payment #{self.id}"
+
+    def save(self, *args, **kwargs):
+        # Ensure only one of payable, receivable, or expense is set
+        if sum(1 for x in [self.payable, self.receivable, self.expense] if x is not None) != 1:
+            raise ValidationError("Payment must be associated with exactly one of: Payable, Receivable, or Expense")

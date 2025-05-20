@@ -4,7 +4,9 @@ from django.urls import reverse
 from django.db.models import Sum
 from .models import (
     AdminActivity, SystemNotification, SystemSettings,
-    FinancialTransaction, ProductAnalytics, DailySales, MonthlyReport
+    FinancialTransaction, ProductAnalytics, DailySales, MonthlyReport,
+    AccountCategory, Account, Transaction, JournalEntry, JournalEntryLine, Receivable, Payable, Expense, Revenue,
+    ProfitLossReport, BalanceSheetReport, Payment
 )
 
 @admin.register(AdminActivity)
@@ -68,3 +70,16 @@ class FinancialTransactionAdmin(admin.ModelAdmin):
     list_filter = ('transaction_type', 'payment_method', 'date')
     search_fields = ('description', 'reference_number', 'created_by__username')
     ordering = ('-date',)
+
+admin.site.register(AccountCategory)
+admin.site.register(Account)
+admin.site.register(Transaction)
+admin.site.register(JournalEntry)
+admin.site.register(JournalEntryLine)
+admin.site.register(Receivable)
+admin.site.register(Payable)
+admin.site.register(Expense)
+admin.site.register(Revenue)
+admin.site.register(ProfitLossReport)
+admin.site.register(BalanceSheetReport)
+admin.site.register(Payment)

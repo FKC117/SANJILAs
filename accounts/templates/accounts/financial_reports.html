@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load humanize %}
+{% load account_filters %}
 
 {% block title %}Financial Reports{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <style>
     .dashboard-header {
         background: #2c3e50;
@@ -31,58 +34,29 @@
     .container-fluid {
         padding: 0 2rem;
     }
-    .report-card {
+    .card {
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         margin-bottom: 2rem;
     }
-    .report-card .card-header {
+    .card-header {
         background: #f8f9fa;
         border-bottom: 1px solid #e9ecef;
         padding: 1rem 1.5rem;
     }
-    .report-card .card-body {
+    .card-body {
         padding: 1.5rem;
     }
-    .report-section {
-        margin-bottom: 2rem;
-    }
-    .report-section:last-child {
-        margin-bottom: 0;
-    }
-    .report-section h5 {
-        color: #2c3e50;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e9ecef;
-    }
-    .report-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #e9ecef;
-    }
-    .report-item:last-child {
-        border-bottom: none;
-    }
-    .report-item-label {
-        color: #6c757d;
-    }
-    .report-item-value {
-        font-weight: 500;
-    }
-    .report-item-value.positive {
-        color: #28a745;
-    }
-    .report-item-value.negative {
-        color: #dc3545;
-    }
-    .report-total {
+    .table th {
         font-weight: 600;
-        font-size: 1.1rem;
-        padding-top: 0.5rem;
-        border-top: 2px solid #e9ecef;
+        color: #2c3e50;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+    .text-end {
+        text-align: right !important;
     }
     .nav-buttons {
         position: fixed;
@@ -96,6 +70,39 @@
         border-radius: 50%;
         margin-left: 0.5rem;
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .chart-container {
+        height: 300px;
+        margin-bottom: 2rem;
+    }
+    .export-buttons {
+        margin-bottom: 1rem;
+    }
+    .comparison-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        margin-left: 0.5rem;
+    }
+    .comparison-badge.positive {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .comparison-badge.negative {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .flatpickr-input {
+        background-color: white !important;
+    }
+    .date-comparison {
+        display: none;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #dee2e6;
+    }
+    .date-comparison.show {
+        display: block;
     }
 </style>
 {% endblock %}
@@ -115,180 +122,321 @@
 </div>
 
 <div class="container-fluid">
+    <!-- Date Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="text" class="form-control datepicker" id="start_date" name="start_date" value="{{ start_date|date:'d/m/Y' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="text" class="form-control datepicker" id="end_date" name="end_date" value="{{ end_date|date:'d/m/Y' }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-2"></i>Apply Filter
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="compareToggle">
+                        <i class="fas fa-exchange-alt me-2"></i>Compare
+                    </button>
+                </div>
+                <div class="col-12 date-comparison" id="dateComparison">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="compare_start_date" class="form-label">Compare Start Date</label>
+                            <input type="text" class="form-control datepicker" id="compare_start_date" name="compare_start_date">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="compare_end_date" class="form-label">Compare End Date</label>
+                            <input type="text" class="form-control datepicker" id="compare_end_date" name="compare_end_date">
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="export-buttons">
+        <button class="btn btn-success me-2" onclick="exportToPDF()">
+            <i class="fas fa-file-pdf me-2"></i>Export to PDF
+        </button>
+        <button class="btn btn-info me-2" onclick="exportToExcel()">
+            <i class="fas fa-file-excel me-2"></i>Export to Excel
+        </button>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Revenue vs Expenses</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="revenueExpensesChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Expense Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="expenseBreakdownChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profit & Loss Statement -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Profit & Loss Statement</h5>
+            <small class="text-muted">For period: {{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</small>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <th colspan="3">Revenue</th>
+                        </tr>
+                        <tr>
+                            <td>Product Sales</td>
+                            <td class="text-end">BDT {{ revenue_data.product_sales|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                {% if revenue_data.product_sales_prev %}
+                                <span class="comparison-badge {% if revenue_data.product_sales > revenue_data.product_sales_prev %}positive{% else %}negative{% endif %}">
+                                    {% if revenue_data.product_sales > revenue_data.product_sales_prev %}↑{% else %}↓{% endif %}
+                                    {{ revenue_data.product_sales|subtract:revenue_data.product_sales_prev|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Shipping Revenue</td>
+                            <td class="text-end">BDT {{ revenue_data.shipping_revenue|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                {% if revenue_data.shipping_revenue_prev %}
+                                <span class="comparison-badge {% if revenue_data.shipping_revenue > revenue_data.shipping_revenue_prev %}positive{% else %}negative{% endif %}">
+                                    {% if revenue_data.shipping_revenue > revenue_data.shipping_revenue_prev %}↑{% else %}↓{% endif %}
+                                    {{ revenue_data.shipping_revenue|subtract:revenue_data.shipping_revenue_prev|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Other Revenue</td>
+                            <td class="text-end">BDT {{ revenue_data.manual_revenue|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                {% if revenue_data.manual_revenue_prev %}
+                                <span class="comparison-badge {% if revenue_data.manual_revenue > revenue_data.manual_revenue_prev %}positive{% else %}negative{% endif %}">
+                                    {% if revenue_data.manual_revenue > revenue_data.manual_revenue_prev %}↑{% else %}↓{% endif %}
+                                    {{ revenue_data.manual_revenue|subtract:revenue_data.manual_revenue_prev|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="table-primary">
+                            <th>Total Revenue</th>
+                            <th class="text-end">BDT {{ total_revenue|floatformat:2|intcomma }}</th>
+                            <td class="text-end">
+                                {% if total_revenue_prev %}
+                                <span class="comparison-badge {% if total_revenue > total_revenue_prev %}positive{% else %}negative{% endif %}">
+                                    {% if total_revenue > total_revenue_prev %}↑{% else %}↓{% endif %}
+                                    {{ total_revenue|subtract:total_revenue_prev|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th colspan="3">Expenses</th>
+                        </tr>
+                        {% for expense_name, expense_amount in expense_data.items %}
+                        <tr>
+                            <td>{{ expense_name|title }}</td>
+                            <td class="text-end">BDT {{ expense_amount|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                {% if expense_data_prev %}
+                                    {% with prev_amount=expense_data_prev|get_item:expense_name %}
+                                        {% if prev_amount %}
+                                        <span class="comparison-badge {% if expense_amount < prev_amount %}positive{% else %}negative{% endif %}">
+                                            {% if expense_amount < prev_amount %}↓{% else %}↑{% endif %}
+                                            {{ expense_amount|subtract:prev_amount|floatformat:2|intcomma }}
+                                        </span>
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        <tr class="table-primary">
+                            <th>Total Expenses</th>
+                            <th class="text-end">BDT {{ total_expenses|floatformat:2|intcomma }}</th>
+                            <td class="text-end">
+                                {% if total_expenses_prev %}
+                                <span class="comparison-badge {% if total_expenses < total_expenses_prev %}positive{% else %}negative{% endif %}">
+                                    {% if total_expenses < total_expenses_prev %}↓{% else %}↑{% endif %}
+                                    {{ total_expenses|subtract:total_expenses_prev|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <tr class="table-success">
+                            <th>Gross Profit</th>
+                            <th class="text-end">BDT {{ gross_profit|floatformat:2|intcomma }}</th>
+                            <td class="text-end">
+                                {% if gross_profit_prev %}
+                                <span class="comparison-badge {% if gross_profit > gross_profit_prev %}positive{% else %}negative{% endif %}">
+                                    {% if gross_profit > gross_profit_prev %}↑{% else %}↓{% endif %}
+                                    {{ gross_profit|subtract:gross_profit_prev|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr class="table-success">
+                            <th>Net Profit</th>
+                            <th class="text-end">BDT {{ net_profit|floatformat:2|intcomma }}</th>
+                            <td class="text-end">
+                                {% if net_profit_prev %}
+                                <span class="comparison-badge {% if net_profit > net_profit_prev %}positive{% else %}negative{% endif %}">
+                                    {% if net_profit > net_profit_prev %}↑{% else %}↓{% endif %}
+                                    {{ net_profit|subtract:net_profit_prev|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <!-- Balance Sheet -->
-    <div class="report-card">
+    <div class="card">
         <div class="card-header">
             <h5 class="card-title mb-0">Balance Sheet</h5>
-            <small class="text-muted">As of {{ balance_sheet_date|date:"F d, Y" }}</small>
+            <small class="text-muted">As of {{ end_date|date:"d M Y" }}</small>
         </div>
         <div class="card-body">
-            <!-- Assets -->
-            <div class="report-section">
-                <h5>Assets</h5>
-                {% for asset in balance_sheet.assets %}
-                <div class="report-item">
-                    <span class="report-item-label">{{ asset.name }}</span>
-                    <span class="report-item-value">${{ asset.amount|floatformat:2|intcomma }}</span>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Assets</h6>
+                    <table class="table">
+                        <tbody>
+                            {% for asset_name, asset_amount in balance_sheet.assets.items %}
+                            <tr>
+                                <td>{{ asset_name|title }}</td>
+                                <td class="text-end">BDT {{ asset_amount|floatformat:2|intcomma }}</td>
+                                <td class="text-end">
+                                    {% if balance_sheet_prev and balance_sheet_prev.assets %}
+                                        {% with prev_amount=balance_sheet_prev.assets|get_item:asset_name %}
+                                            {% if prev_amount %}
+                                            <span class="comparison-badge {% if asset_amount > prev_amount %}positive{% else %}negative{% endif %}">
+                                                {% if asset_amount > prev_amount %}↑{% else %}↓{% endif %}
+                                                {{ asset_amount|subtract:prev_amount|floatformat:2|intcomma }}
+                                            </span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-primary">
+                                <th>Total Assets</th>
+                                <th class="text-end">BDT {{ total_assets|floatformat:2|intcomma }}</th>
+                                <td class="text-end">
+                                    {% if total_assets_prev %}
+                                    <span class="comparison-badge {% if total_assets > total_assets_prev %}positive{% else %}negative{% endif %}">
+                                        {% if total_assets > total_assets_prev %}↑{% else %}↓{% endif %}
+                                        {{ total_assets|subtract:total_assets_prev|floatformat:2|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                {% endfor %}
-                <div class="report-item report-total">
-                    <span>Total Assets</span>
-                    <span class="report-item-value">${{ balance_sheet.total_assets|floatformat:2|intcomma }}</span>
-                </div>
-            </div>
-
-            <!-- Liabilities -->
-            <div class="report-section">
-                <h5>Liabilities</h5>
-                {% for liability in balance_sheet.liabilities %}
-                <div class="report-item">
-                    <span class="report-item-label">{{ liability.name }}</span>
-                    <span class="report-item-value">${{ liability.amount|floatformat:2|intcomma }}</span>
-                </div>
-                {% endfor %}
-                <div class="report-item report-total">
-                    <span>Total Liabilities</span>
-                    <span class="report-item-value">${{ balance_sheet.total_liabilities|floatformat:2|intcomma }}</span>
-                </div>
-            </div>
-
-            <!-- Equity -->
-            <div class="report-section">
-                <h5>Equity</h5>
-                {% for equity in balance_sheet.equity %}
-                <div class="report-item">
-                    <span class="report-item-label">{{ equity.name }}</span>
-                    <span class="report-item-value">${{ equity.amount|floatformat:2|intcomma }}</span>
-                </div>
-                {% endfor %}
-                <div class="report-item report-total">
-                    <span>Total Equity</span>
-                    <span class="report-item-value">${{ balance_sheet.total_equity|floatformat:2|intcomma }}</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Income Statement -->
-    <div class="report-card">
-        <div class="card-header">
-            <h5 class="card-title mb-0">Income Statement</h5>
-            <small class="text-muted">For the period {{ income_statement_start_date|date:"F d, Y" }} to {{ income_statement_end_date|date:"F d, Y" }}</small>
-        </div>
-        <div class="card-body">
-            <!-- Revenue -->
-            <div class="report-section">
-                <h5>Revenue</h5>
-                {% for revenue in income_statement.revenue %}
-                <div class="report-item">
-                    <span class="report-item-label">{{ revenue.name }}</span>
-                    <span class="report-item-value">${{ revenue.amount|floatformat:2|intcomma }}</span>
-                </div>
-                {% endfor %}
-                <div class="report-item report-total">
-                    <span>Total Revenue</span>
-                    <span class="report-item-value">${{ income_statement.total_revenue|floatformat:2|intcomma }}</span>
-                </div>
-            </div>
-
-            <!-- Expenses -->
-            <div class="report-section">
-                <h5>Expenses</h5>
-                {% for expense in income_statement.expenses %}
-                <div class="report-item">
-                    <span class="report-item-label">{{ expense.name }}</span>
-                    <span class="report-item-value">${{ expense.amount|floatformat:2|intcomma }}</span>
-                </div>
-                {% endfor %}
-                <div class="report-item report-total">
-                    <span>Total Expenses</span>
-                    <span class="report-item-value">${{ income_statement.total_expenses|floatformat:2|intcomma }}</span>
-                </div>
-            </div>
-
-            <!-- Net Income -->
-            <div class="report-section">
-                <div class="report-item report-total">
-                    <span>Net Income</span>
-                    <span class="report-item-value {% if income_statement.net_income >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ income_statement.net_income|floatformat:2|intcomma }}
-                    </span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Cash Flow Statement -->
-    <div class="report-card">
-        <div class="card-header">
-            <h5 class="card-title mb-0">Cash Flow Statement</h5>
-            <small class="text-muted">For the period {{ cash_flow_start_date|date:"F d, Y" }} to {{ cash_flow_end_date|date:"F d, Y" }}</small>
-        </div>
-        <div class="card-body">
-            <!-- Operating Activities -->
-            <div class="report-section">
-                <h5>Operating Activities</h5>
-                {% for activity in cash_flow.operating %}
-                <div class="report-item">
-                    <span class="report-item-label">{{ activity.name }}</span>
-                    <span class="report-item-value {% if activity.amount >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ activity.amount|floatformat:2|intcomma }}
-                    </span>
-                </div>
-                {% endfor %}
-                <div class="report-item report-total">
-                    <span>Net Cash from Operations</span>
-                    <span class="report-item-value {% if cash_flow.net_operating >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ cash_flow.net_operating|floatformat:2|intcomma }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Investing Activities -->
-            <div class="report-section">
-                <h5>Investing Activities</h5>
-                {% for activity in cash_flow.investing %}
-                <div class="report-item">
-                    <span class="report-item-label">{{ activity.name }}</span>
-                    <span class="report-item-value {% if activity.amount >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ activity.amount|floatformat:2|intcomma }}
-                    </span>
-                </div>
-                {% endfor %}
-                <div class="report-item report-total">
-                    <span>Net Cash from Investing</span>
-                    <span class="report-item-value {% if cash_flow.net_investing >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ cash_flow.net_investing|floatformat:2|intcomma }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Financing Activities -->
-            <div class="report-section">
-                <h5>Financing Activities</h5>
-                {% for activity in cash_flow.financing %}
-                <div class="report-item">
-                    <span class="report-item-label">{{ activity.name }}</span>
-                    <span class="report-item-value {% if activity.amount >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ activity.amount|floatformat:2|intcomma }}
-                    </span>
-                </div>
-                {% endfor %}
-                <div class="report-item report-total">
-                    <span>Net Cash from Financing</span>
-                    <span class="report-item-value {% if cash_flow.net_financing >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ cash_flow.net_financing|floatformat:2|intcomma }}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Net Change in Cash -->
-            <div class="report-section">
-                <div class="report-item report-total">
-                    <span>Net Change in Cash</span>
-                    <span class="report-item-value {% if cash_flow.net_change >= 0 %}positive{% else %}negative{% endif %}">
-                        ${{ cash_flow.net_change|floatformat:2|intcomma }}
-                    </span>
+                <div class="col-md-6">
+                    <h6>Liabilities & Equity</h6>
+                    <table class="table">
+                        <tbody>
+                            {% for liability_name, liability_amount in balance_sheet.liabilities.items %}
+                            <tr>
+                                <td>{{ liability_name|title }}</td>
+                                <td class="text-end">BDT {{ liability_amount|floatformat:2|intcomma }}</td>
+                                <td class="text-end">
+                                    {% if balance_sheet_prev.liabilities|get_item:liability_name %}
+                                    <span class="comparison-badge {% if liability_amount < balance_sheet_prev.liabilities|get_item:liability_name %}positive{% else %}negative{% endif %}">
+                                        {% if liability_amount < balance_sheet_prev.liabilities|get_item:liability_name %}↓{% else %}↑{% endif %}
+                                        {{ liability_amount|subtract:balance_sheet_prev.liabilities|get_item:liability_name|floatformat:2|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-primary">
+                                <th>Total Liabilities</th>
+                                <th class="text-end">BDT {{ total_liabilities|floatformat:2|intcomma }}</th>
+                                <td class="text-end">
+                                    {% if total_liabilities_prev %}
+                                    <span class="comparison-badge {% if total_liabilities < total_liabilities_prev %}positive{% else %}negative{% endif %}">
+                                        {% if total_liabilities < total_liabilities_prev %}↓{% else %}↑{% endif %}
+                                        {{ total_liabilities|subtract:total_liabilities_prev|floatformat:2|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% for equity_name, equity_amount in balance_sheet.equity.items %}
+                            <tr>
+                                <td>{{ equity_name|title }}</td>
+                                <td class="text-end">BDT {{ equity_amount|floatformat:2|intcomma }}</td>
+                                <td class="text-end">
+                                    {% if balance_sheet_prev.equity|get_item:equity_name %}
+                                    <span class="comparison-badge {% if equity_amount > balance_sheet_prev.equity|get_item:equity_name %}positive{% else %}negative{% endif %}">
+                                        {% if equity_amount > balance_sheet_prev.equity|get_item:equity_name %}↑{% else %}↓{% endif %}
+                                        {{ equity_amount|subtract:balance_sheet_prev.equity|get_item:equity_name|floatformat:2|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="table-primary">
+                                <th>Total Equity</th>
+                                <th class="text-end">BDT {{ total_equity|floatformat:2|intcomma }}</th>
+                                <td class="text-end">
+                                    {% if total_equity_prev %}
+                                    <span class="comparison-badge {% if total_equity > total_equity_prev %}positive{% else %}negative{% endif %}">
+                                        {% if total_equity > total_equity_prev %}↑{% else %}↓{% endif %}
+                                        {{ total_equity|subtract:total_equity_prev|floatformat:2|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr class="table-success">
+                                <th>Total Liabilities & Equity</th>
+                                <th class="text-end">BDT {{ total_liabilities|add:total_equity|floatformat:2|intcomma }}</th>
+                                <td class="text-end">
+                                    {% if total_liabilities_prev and total_equity_prev %}
+                                    <span class="comparison-badge {% if total_liabilities|add:total_equity > total_liabilities_prev|add:total_equity_prev %}positive{% else %}negative{% endif %}">
+                                        {% if total_liabilities|add:total_equity > total_liabilities_prev|add:total_equity_prev %}↑{% else %}↓{% endif %}
+                                        {{ total_liabilities|add:total_equity|subtract:total_liabilities_prev|add:total_equity_prev|floatformat:2|intcomma }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -310,4 +458,176 @@
         <i class="fas fa-receipt"></i>
     </a>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+    // Initialize date pickers
+    flatpickr(".datepicker", {
+        dateFormat: "d/m/Y",
+        allowInput: true
+    });
+
+    // Initialize charts
+    const revenueExpensesCtx = document.getElementById('revenueExpensesChart').getContext('2d');
+    new Chart(revenueExpensesCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Revenue', 'Expenses'],
+            datasets: [{
+                label: 'Current Period',
+                data: [{{ total_revenue }}, {{ total_expenses }}],
+                backgroundColor: ['rgba(40, 167, 69, 0.5)', 'rgba(220, 53, 69, 0.5)'],
+                borderColor: ['rgb(40, 167, 69)', 'rgb(220, 53, 69)'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    const expenseBreakdownCtx = document.getElementById('expenseBreakdownChart').getContext('2d');
+    new Chart(expenseBreakdownCtx, {
+        type: 'pie',
+        data: {
+            labels: [
+                {% for expense_name, expense_amount in expense_data.items %}
+                '{{ expense_name|title }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for expense_amount in expense_data.values %}
+                    {{ expense_amount }},
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.5)',
+                    'rgba(54, 162, 235, 0.5)',
+                    'rgba(255, 206, 86, 0.5)',
+                    'rgba(75, 192, 192, 0.5)',
+                    'rgba(153, 102, 255, 0.5)',
+                    'rgba(255, 159, 64, 0.5)',
+                    'rgba(199, 199, 199, 0.5)',
+                    'rgba(83, 102, 255, 0.5)'
+                ],
+                borderColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(54, 162, 235)',
+                    'rgb(255, 206, 86)',
+                    'rgb(75, 192, 192)',
+                    'rgb(153, 102, 255)',
+                    'rgb(255, 159, 64)',
+                    'rgb(199, 199, 199)',
+                    'rgb(83, 102, 255)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+
+    // Export to PDF
+    function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Add title
+        doc.setFontSize(20);
+        doc.text('Financial Reports', 20, 20);
+        
+        // Add date range
+        doc.setFontSize(12);
+        doc.text(`Period: ${document.getElementById('start_date').value} to ${document.getElementById('end_date').value}`, 20, 30);
+        
+        // Add content
+        let y = 50;
+        const tables = document.querySelectorAll('.table');
+        tables.forEach(table => {
+            const rows = table.querySelectorAll('tr');
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                let x = 20;
+                cells.forEach(cell => {
+                    doc.text(cell.textContent, x, y);
+                    x += 50;
+                });
+                y += 10;
+            });
+            y += 20;
+        });
+        
+        doc.save('financial_reports.pdf');
+    }
+
+    // Export to Excel
+    function exportToExcel() {
+        try {
+            const wb = XLSX.utils.book_new();
+            
+            // Helper function to clean table data
+            function cleanTableData(table) {
+                const rows = Array.from(table.querySelectorAll('tr'));
+                return rows.map(row => {
+                    const cells = Array.from(row.querySelectorAll('th, td'));
+                    return cells.map(cell => {
+                        // Remove BDT prefix and commas from numbers
+                        let text = cell.textContent.trim();
+                        text = text.replace('BDT', '').replace(/,/g, '').trim();
+                        // Try to convert to number if possible
+                        const num = parseFloat(text);
+                        return isNaN(num) ? text : num;
+                    });
+                });
+            }
+
+            // Add P&L Statement
+            const plTable = document.querySelector('.card:nth-child(3) .table');
+            if (plTable) {
+                const plData = cleanTableData(plTable);
+                const plSheet = XLSX.utils.aoa_to_sheet(plData);
+                XLSX.utils.book_append_sheet(wb, plSheet, 'Profit & Loss');
+            }
+            
+            // Add Balance Sheet
+            const bsTable = document.querySelector('.card:nth-child(4) .table');
+            if (bsTable) {
+                const bsData = cleanTableData(bsTable);
+                const bsSheet = XLSX.utils.aoa_to_sheet(bsData);
+                XLSX.utils.book_append_sheet(wb, bsSheet, 'Balance Sheet');
+            }
+            
+            // Add date range to filename
+            const startDate = document.getElementById('start_date').value.replace(/\//g, '-');
+            const endDate = document.getElementById('end_date').value.replace(/\//g, '-');
+            const filename = `financial_reports_${startDate}_to_${endDate}.xlsx`;
+            
+            // Save the file
+            XLSX.writeFile(wb, filename);
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            alert('There was an error exporting to Excel. Please try again.');
+        }
+    }
+
+    // Comparison toggle
+    document.getElementById('compareToggle').addEventListener('click', function() {
+        const comparisonDiv = document.getElementById('dateComparison');
+        comparisonDiv.classList.toggle('show');
+    });
+</script>
 {% endblock %} 

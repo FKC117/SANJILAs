@@ -167,3 +167,10 @@ class ContactAdmin(admin.ModelAdmin):
     
     def has_delete_permission(self, request, obj=None):
         return True
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'phone', 'address', 'created_at')
+    search_fields = ('name', 'email', 'phone')
+    list_filter = ('created_at',)
+    ordering = ('-created_at',)

@@ -10,7 +10,8 @@ from .models import (
     MonthlyReport, AdminActivity, SystemNotification,
     Account, Transaction, JournalEntry, JournalEntryLine,
     Receivable, Payable, Expense, Revenue,
-    ProfitLossReport, BalanceSheetReport, AccountCategory
+    ProfitLossReport, BalanceSheetReport, AccountCategory,
+    Payment
 )
 from shop.models import Product
 from order.models import Order, OrderItem
@@ -531,10 +532,19 @@ def accounting_dashboard(request):
     end_date = timezone.now()
     start_date = end_date - timedelta(days=30)
     
-    # Get financial summary
-    total_revenue = Revenue.objects.filter(
+    # Get manual revenue entries
+    manual_revenue = Revenue.objects.filter(
         date__range=[start_date, end_date]
     ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Get order-based revenue
+    order_revenue = Order.objects.filter(
+        order_date__range=[start_date, end_date],
+        status__in=['delivered', 'shipped', 'pending']
+    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    
+    # Combine both revenue sources
+    total_revenue = manual_revenue + order_revenue
     
     total_expenses = Expense.objects.filter(
         date__range=[start_date, end_date]
@@ -559,12 +569,25 @@ def accounting_dashboard(request):
         'account'
     ).order_by('-date', '-created_at')[:10]
     
-    # Get monthly revenue trend
-    monthly_revenue = Revenue.objects.annotate(
-        month=TruncMonth('date')
-    ).values('month').annotate(
-        total=Sum('amount')
-    ).order_by('month')[:12]
+    # Get monthly revenue trend (combining both manual and order revenue)
+    monthly_revenue = []
+    for i in range(12):
+        month_start = end_date.replace(day=1) - timedelta(days=i*30)
+        month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        
+        manual_monthly = Revenue.objects.filter(
+            date__range=[month_start, month_end]
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        order_monthly = Order.objects.filter(
+            order_date__range=[month_start, month_end],
+            status__in=['delivered', 'shipped', 'pending']
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        monthly_revenue.append({
+            'month': month_start,
+            'total': manual_monthly + order_monthly
+        })
     
     # Get expense breakdown
     expense_breakdown = Expense.objects.values(
@@ -586,6 +609,8 @@ def accounting_dashboard(request):
     
     context = {
         'total_revenue': total_revenue,
+        'manual_revenue': manual_revenue,
+        'order_revenue': order_revenue,
         'total_expenses': total_expenses,
         'net_profit': total_revenue - total_expenses,
         'total_receivables': total_receivables,
@@ -692,6 +717,56 @@ def chart_of_accounts(request):
     # Get all categories with their accounts
     account_categories = AccountCategory.objects.prefetch_related('accounts').all()
 
+    # Calculate actual balances for each account
+    for category in account_categories:
+        for account in category.accounts.all():
+            # Get transactions for this account
+            transactions = Transaction.objects.filter(account=account)
+            
+            # Calculate balance based on account type
+            if account.type in ['asset', 'expense']:
+                # Debit increases, credit decreases
+                account.balance = transactions.filter(type='debit').aggregate(total=Sum('amount'))['total'] or 0
+                account.balance -= transactions.filter(type='credit').aggregate(total=Sum('amount'))['total'] or 0
+            else:
+                # Credit increases, debit decreases
+                account.balance = transactions.filter(type='credit').aggregate(total=Sum('amount'))['total'] or 0
+                account.balance -= transactions.filter(type='debit').aggregate(total=Sum('amount'))['total'] or 0
+
+            # For specific accounts, get actual data
+            if account.name == 'Accounts Receivable':
+                account.balance = Receivable.objects.filter(status__in=['PENDING', 'PARTIAL', 'OVERDUE']).aggregate(
+                    total=Sum('amount') - Sum('paid_amount')
+                )['total'] or 0
+            elif account.name == 'Accounts Payable':
+                account.balance = Payable.objects.filter(status__in=['PENDING', 'PARTIAL', 'OVERDUE']).aggregate(
+                    total=Sum('amount') - Sum('paid_amount')
+                )['total'] or 0
+            elif account.name == 'Product Sales':
+                account.balance = Order.objects.filter(
+                    status__in=['delivered', 'shipped', 'pending']
+                ).aggregate(total=Sum('total_amount'))['total'] or 0
+            elif account.name == 'Cost of Goods Sold':
+                account.balance = OrderItem.objects.filter(
+                    order__status__in=['delivered', 'shipped', 'pending']
+                ).aggregate(
+                    total=Sum(F('quantity') * F('product__buying_price'))
+                )['total'] or 0
+            elif account.name == 'Shipping Expenses':
+                account.balance = Expense.objects.filter(type='shipping').aggregate(total=Sum('amount'))['total'] or 0
+            elif account.name == 'Marketing Expenses':
+                account.balance = Expense.objects.filter(type='marketing').aggregate(total=Sum('amount'))['total'] or 0
+            elif account.name == 'Payroll Expenses':
+                account.balance = Expense.objects.filter(type='salary').aggregate(total=Sum('amount'))['total'] or 0
+            elif account.name == 'Rent Expense':
+                account.balance = Expense.objects.filter(type='rent').aggregate(total=Sum('amount'))['total'] or 0
+            elif account.name == 'Utilities':
+                account.balance = Expense.objects.filter(type='utilities').aggregate(total=Sum('amount'))['total'] or 0
+            elif account.name == 'Website Expenses':
+                account.balance = Expense.objects.filter(type='website').aggregate(total=Sum('amount'))['total'] or 0
+            elif account.name == 'Payment Processing Fees':
+                account.balance = Expense.objects.filter(type='payment_processing').aggregate(total=Sum('amount'))['total'] or 0
+
     return render(request, 'accounts/chart_of_accounts.html', {
         'form': form,
         'category_form': category_form,
@@ -760,7 +835,9 @@ def expenses(request):
     if request.method == 'POST':
         form = ExpenseForm(request.POST)
         if form.is_valid():
-            form.save()
+            expense = form.save(commit=False)
+            expense.created_by = request.user
+            expense.save()
             messages.success(request, 'Expense created successfully.')
             return redirect('accounts:expenses')
     else:
@@ -793,27 +870,419 @@ def revenue(request):
 @user_passes_test(is_superuser)
 def financial_reports(request):
     """View financial reports"""
-    # Get date range
+    # Get date range from request or default to last 30 days
     end_date = timezone.now()
-    start_date = end_date - timedelta(days=30)
+    if request.GET.get('end_date'):
+        try:
+            end_date = datetime.strptime(request.GET.get('end_date'), '%d/%m/%Y').date()
+        except ValueError:
+            pass
     
-    # Get P&L report
-    pl_report = ProfitLossReport.objects.filter(
-        start_date=start_date,
-        end_date=end_date
-    ).first()
-    
-    # Get Balance Sheet
-    bs_report = BalanceSheetReport.objects.filter(
-        start_date=start_date,
-        end_date=end_date
-    ).first()
-    
+    if request.GET.get('start_date'):
+        try:
+            start_date = datetime.strptime(request.GET.get('start_date'), '%d/%m/%Y').date()
+        except ValueError:
+            start_date = end_date - timedelta(days=30)
+    else:
+        start_date = end_date - timedelta(days=30)
+
+    # Get comparison date range if provided
+    compare_start_date = None
+    compare_end_date = None
+    if request.GET.get('compare_start_date') and request.GET.get('compare_end_date'):
+        try:
+            compare_start_date = datetime.strptime(request.GET.get('compare_start_date'), '%d/%m/%Y').date()
+            compare_end_date = datetime.strptime(request.GET.get('compare_end_date'), '%d/%m/%Y').date()
+        except ValueError:
+            pass
+
+    # Get revenue data
+    revenue_data = {
+        'product_sales': Order.objects.filter(
+            order_date__range=[start_date, end_date],
+            status__in=['delivered', 'shipped', 'pending']
+        ).aggregate(total=Sum('total_amount'))['total'] or 0,
+        
+        'shipping_revenue': Order.objects.filter(
+            order_date__range=[start_date, end_date],
+            status__in=['delivered', 'shipped', 'pending']
+        ).aggregate(total=Sum('shipping_cost'))['total'] or 0,
+        
+        'manual_revenue': Revenue.objects.filter(
+            date__range=[start_date, end_date]
+        ).aggregate(total=Sum('amount'))['total'] or 0
+    }
+    total_revenue = sum(revenue_data.values())
+
+    # Get comparison revenue data if comparison dates provided
+    if compare_start_date and compare_end_date:
+        revenue_data.update({
+            'product_sales_prev': Order.objects.filter(
+                order_date__range=[compare_start_date, compare_end_date],
+                status__in=['delivered', 'shipped', 'pending']
+            ).aggregate(total=Sum('total_amount'))['total'] or 0,
+            
+            'shipping_revenue_prev': Order.objects.filter(
+                order_date__range=[compare_start_date, compare_end_date],
+                status__in=['delivered', 'shipped', 'pending']
+            ).aggregate(total=Sum('shipping_cost'))['total'] or 0,
+            
+            'manual_revenue_prev': Revenue.objects.filter(
+                date__range=[compare_start_date, compare_end_date]
+            ).aggregate(total=Sum('amount'))['total'] or 0
+        })
+        total_revenue_prev = sum([
+            revenue_data['product_sales_prev'],
+            revenue_data['shipping_revenue_prev'],
+            revenue_data['manual_revenue_prev']
+        ])
+    else:
+        total_revenue_prev = None
+
+    # Get expense data
+    expense_data = {
+        'cost_of_goods': OrderItem.objects.filter(
+            order__order_date__range=[start_date, end_date],
+            order__status__in=['delivered', 'shipped', 'pending']
+        ).aggregate(
+            total=Sum(F('quantity') * F('product__buying_price'))
+        )['total'] or 0,
+        
+        'shipping_expenses': Expense.objects.filter(
+            date__range=[start_date, end_date],
+            type='shipping'
+        ).aggregate(total=Sum('amount'))['total'] or 0,
+        
+        'marketing_expenses': Expense.objects.filter(
+            date__range=[start_date, end_date],
+            type='marketing'
+        ).aggregate(total=Sum('amount'))['total'] or 0,
+        
+        'payroll_expenses': Expense.objects.filter(
+            date__range=[start_date, end_date],
+            type='salary'
+        ).aggregate(total=Sum('amount'))['total'] or 0,
+        
+        'rent_expenses': Expense.objects.filter(
+            date__range=[start_date, end_date],
+            type='rent'
+        ).aggregate(total=Sum('amount'))['total'] or 0,
+        
+        'utilities': Expense.objects.filter(
+            date__range=[start_date, end_date],
+            type='utilities'
+        ).aggregate(total=Sum('amount'))['total'] or 0,
+        
+        'website_expenses': Expense.objects.filter(
+            date__range=[start_date, end_date],
+            type='website'
+        ).aggregate(total=Sum('amount'))['total'] or 0,
+        
+        'payment_processing': Expense.objects.filter(
+            date__range=[start_date, end_date],
+            type='payment_processing'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+    }
+    total_expenses = sum(expense_data.values())
+
+    # Get comparison expense data if comparison dates provided
+    if compare_start_date and compare_end_date:
+        expense_data_prev = {
+            'cost_of_goods': OrderItem.objects.filter(
+                order__order_date__range=[compare_start_date, compare_end_date],
+                order__status__in=['delivered', 'shipped', 'pending']
+            ).aggregate(
+                total=Sum(F('quantity') * F('product__buying_price'))
+            )['total'] or 0,
+            
+            'shipping_expenses': Expense.objects.filter(
+                date__range=[compare_start_date, compare_end_date],
+                type='shipping'
+            ).aggregate(total=Sum('amount'))['total'] or 0,
+            
+            'marketing_expenses': Expense.objects.filter(
+                date__range=[compare_start_date, compare_end_date],
+                type='marketing'
+            ).aggregate(total=Sum('amount'))['total'] or 0,
+            
+            'payroll_expenses': Expense.objects.filter(
+                date__range=[compare_start_date, compare_end_date],
+                type='salary'
+            ).aggregate(total=Sum('amount'))['total'] or 0,
+            
+            'rent_expenses': Expense.objects.filter(
+                date__range=[compare_start_date, compare_end_date],
+                type='rent'
+            ).aggregate(total=Sum('amount'))['total'] or 0,
+            
+            'utilities': Expense.objects.filter(
+                date__range=[compare_start_date, compare_end_date],
+                type='utilities'
+            ).aggregate(total=Sum('amount'))['total'] or 0,
+            
+            'website_expenses': Expense.objects.filter(
+                date__range=[compare_start_date, compare_end_date],
+                type='website'
+            ).aggregate(total=Sum('amount'))['total'] or 0,
+            
+            'payment_processing': Expense.objects.filter(
+                date__range=[compare_start_date, compare_end_date],
+                type='payment_processing'
+            ).aggregate(total=Sum('amount'))['total'] or 0
+        }
+        total_expenses_prev = sum(expense_data_prev.values())
+    else:
+        expense_data_prev = None
+        total_expenses_prev = None
+
+    # Calculate profits
+    gross_profit = total_revenue - expense_data['cost_of_goods']
+    net_profit = gross_profit - (total_expenses - expense_data['cost_of_goods'])
+
+    # Calculate comparison profits if comparison dates provided
+    if compare_start_date and compare_end_date:
+        gross_profit_prev = total_revenue_prev - expense_data_prev['cost_of_goods']
+        net_profit_prev = gross_profit_prev - (total_expenses_prev - expense_data_prev['cost_of_goods'])
+    else:
+        gross_profit_prev = None
+        net_profit_prev = None
+
+    # Get balance sheet data
+    balance_sheet = {
+        'assets': {
+            'cash': Account.objects.filter(type='asset', name='Cash').first().balance or 0,
+            'accounts_receivable': Receivable.objects.filter(
+                status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+            ).aggregate(
+                total=Sum('amount') - Sum('paid_amount')
+            )['total'] or 0,
+            'inventory': Product.objects.aggregate(
+                total=Sum(F('stock') * F('buying_price'))
+            )['total'] or 0,
+            'prepaid_expenses': Account.objects.filter(type='asset', name='Prepaid Expenses').first().balance or 0
+        },
+        'liabilities': {
+            'accounts_payable': Payable.objects.filter(
+                status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+            ).aggregate(
+                total=Sum('amount') - Sum('paid_amount')
+            )['total'] or 0,
+            'sales_tax_payable': Account.objects.filter(type='liability', name='Sales Tax Payable').first().balance or 0,
+            'wages_payable': Account.objects.filter(type='liability', name='Wages Payable').first().balance or 0
+        },
+        'equity': {
+            'common_stock': Account.objects.filter(type='equity', name='Common Stock').first().balance or 0,
+            'retained_earnings': Account.objects.filter(type='equity', name='Retained Earnings').first().balance or 0
+        }
+    }
+
+    # Get comparison balance sheet data if comparison dates provided
+    if compare_start_date and compare_end_date:
+        balance_sheet_prev = {
+            'assets': {
+                'cash': Account.objects.filter(type='asset', name='Cash').first().balance or 0,
+                'accounts_receivable': Receivable.objects.filter(
+                    status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+                ).aggregate(
+                    total=Sum('amount') - Sum('paid_amount')
+                )['total'] or 0,
+                'inventory': Product.objects.aggregate(
+                    total=Sum(F('stock') * F('buying_price'))
+                )['total'] or 0,
+                'prepaid_expenses': Account.objects.filter(type='asset', name='Prepaid Expenses').first().balance or 0
+            },
+            'liabilities': {
+                'accounts_payable': Payable.objects.filter(
+                    status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+                ).aggregate(
+                    total=Sum('amount') - Sum('paid_amount')
+                )['total'] or 0,
+                'sales_tax_payable': Account.objects.filter(type='liability', name='Sales Tax Payable').first().balance or 0,
+                'wages_payable': Account.objects.filter(type='liability', name='Wages Payable').first().balance or 0
+            },
+            'equity': {
+                'common_stock': Account.objects.filter(type='equity', name='Common Stock').first().balance or 0,
+                'retained_earnings': Account.objects.filter(type='equity', name='Retained Earnings').first().balance or 0
+            }
+        }
+    else:
+        balance_sheet_prev = None
+
+    # Calculate totals
+    total_assets = sum(balance_sheet['assets'].values())
+    total_liabilities = sum(balance_sheet['liabilities'].values())
+    total_equity = sum(balance_sheet['equity'].values())
+
+    # Calculate comparison totals if comparison dates provided
+    if compare_start_date and compare_end_date:
+        total_assets_prev = sum(balance_sheet_prev['assets'].values())
+        total_liabilities_prev = sum(balance_sheet_prev['liabilities'].values())
+        total_equity_prev = sum(balance_sheet_prev['equity'].values())
+    else:
+        total_assets_prev = None
+        total_liabilities_prev = None
+        total_equity_prev = None
+
     context = {
-        'pl_report': pl_report,
-        'bs_report': bs_report,
         'start_date': start_date,
         'end_date': end_date,
+        'revenue_data': revenue_data,
+        'total_revenue': total_revenue,
+        'total_revenue_prev': total_revenue_prev,
+        'expense_data': expense_data,
+        'expense_data_prev': expense_data_prev,
+        'total_expenses': total_expenses,
+        'total_expenses_prev': total_expenses_prev,
+        'gross_profit': gross_profit,
+        'gross_profit_prev': gross_profit_prev,
+        'net_profit': net_profit,
+        'net_profit_prev': net_profit_prev,
+        'balance_sheet': balance_sheet,
+        'balance_sheet_prev': balance_sheet_prev,
+        'total_assets': total_assets,
+        'total_assets_prev': total_assets_prev,
+        'total_liabilities': total_liabilities,
+        'total_liabilities_prev': total_liabilities_prev,
+        'total_equity': total_equity,
+        'total_equity_prev': total_equity_prev,
     }
     
     return render(request, 'accounts/financial_reports.html', context)
+
+@login_required
+def edit_payable(request, payable_id):
+    payable = get_object_or_404(Payable, id=payable_id)
+    if request.method == 'POST':
+        form = PayableForm(request.POST, instance=payable)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Payable updated successfully.')
+            return redirect('accounts:payables')
+    else:
+        form = PayableForm(instance=payable)
+    return render(request, 'accounts/payables.html', {'form': form})
+
+@login_required
+def record_payable_payment(request, payable_id):
+    payable = get_object_or_404(Payable, id=payable_id)
+    if request.method == 'POST':
+        amount = Decimal(request.POST.get('amount'))
+        payment_date = request.POST.get('payment_date')
+        payment_method = request.POST.get('payment_method')
+        reference = request.POST.get('reference')
+        notes = request.POST.get('notes')
+
+        if amount > payable.balance:
+            messages.error(request, 'Payment amount cannot exceed the balance.')
+            return redirect('accounts:payables')
+
+        # Create payment record
+        payment = Payment.objects.create(
+            payable=payable,
+            amount=amount,
+            date=payment_date,
+            method=payment_method,
+            reference=reference,
+            notes=notes,
+            created_by=request.user
+        )
+
+        # Update payable
+        payable.paid_amount += amount
+        payable.save()
+
+        messages.success(request, 'Payment recorded successfully.')
+        return redirect('accounts:payables')
+    return redirect('accounts:payables')
+
+@login_required
+def edit_receivable(request, receivable_id):
+    receivable = get_object_or_404(Receivable, id=receivable_id)
+    if request.method == 'POST':
+        form = ReceivableForm(request.POST, instance=receivable)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Receivable updated successfully.')
+            return redirect('accounts:receivables')
+    else:
+        form = ReceivableForm(instance=receivable)
+    return render(request, 'accounts/receivables.html', {'form': form})
+
+@login_required
+def record_receivable_payment(request, receivable_id):
+    receivable = get_object_or_404(Receivable, id=receivable_id)
+    if request.method == 'POST':
+        amount = Decimal(request.POST.get('amount'))
+        payment_date = request.POST.get('payment_date')
+        payment_method = request.POST.get('payment_method')
+        reference = request.POST.get('reference')
+        notes = request.POST.get('notes')
+
+        if amount > receivable.balance:
+            messages.error(request, 'Payment amount cannot exceed the balance.')
+            return redirect('accounts:receivables')
+
+        # Create payment record
+        payment = Payment.objects.create(
+            receivable=receivable,
+            amount=amount,
+            date=payment_date,
+            method=payment_method,
+            reference=reference,
+            notes=notes,
+            created_by=request.user
+        )
+
+        # Update receivable
+        receivable.paid_amount += amount
+        receivable.save()
+
+        messages.success(request, 'Payment recorded successfully.')
+        return redirect('accounts:receivables')
+    return redirect('accounts:receivables')
+
+@login_required
+def edit_expense(request, expense_id):
+    expense = get_object_or_404(Expense, id=expense_id)
+    if request.method == 'POST':
+        form = ExpenseForm(request.POST, instance=expense)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Expense updated successfully.')
+            return redirect('accounts:expenses')
+    else:
+        form = ExpenseForm(instance=expense)
+    return render(request, 'accounts/expenses.html', {'form': form})
+
+@login_required
+def record_expense_payment(request, expense_id):
+    expense = get_object_or_404(Expense, id=expense_id)
+    if request.method == 'POST':
+        amount = Decimal(request.POST.get('amount'))
+        payment_date = request.POST.get('payment_date')
+        payment_method = request.POST.get('payment_method')
+        reference = request.POST.get('reference')
+        notes = request.POST.get('notes')
+
+        if amount > expense.amount:
+            messages.error(request, 'Payment amount cannot exceed the expense amount.')
+            return redirect('accounts:expenses')
+
+        # Create payment record
+        payment = Payment.objects.create(
+            expense=expense,
+            amount=amount,
+            date=payment_date,
+            method=payment_method,
+            reference=reference,
+            notes=notes,
+            created_by=request.user
+        )
+
+        # Update expense status
+        expense.is_paid = True
+        expense.save()
+
+        messages.success(request, 'Payment recorded successfully.')
+        return redirect('accounts:expenses')
+    return redirect('accounts:expenses')
