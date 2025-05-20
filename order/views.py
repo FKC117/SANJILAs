@@ -313,27 +313,41 @@ def checkout_view(request):
         return redirect('cart_view')
 
     shipping_location = request.session.get('shipping_location', 'inside_dhaka')
+    print(f"Current shipping location from session: {shipping_location}")
 
     # AJAX: Handle shipping location changes
     if request.method == 'POST' and 'shipping_location' in request.POST and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        print("Received shipping location update request")
+        print(f"POST data: {request.POST}")
+        print(f"Headers: {request.headers}")
+        
         new_shipping_location = request.POST.get('shipping_location')
+        print(f"New shipping location: {new_shipping_location}")
+        
         request.session['shipping_location'] = new_shipping_location
+        request.session.modified = True  # Ensure session is saved
+        print(f"Updated session shipping location: {request.session.get('shipping_location')}")
 
         cart_total_price = Decimal(str(cart.get_total_price()))
+        print(f"Cart total: {cart_total_price}")
         
         try:
             shipping_cost = Decimal(str(ShippingRate.get_rate(new_shipping_location)))
+            print(f"New shipping cost: {shipping_cost}")
         except Exception as e:
-            print(f"Error getting shipping rate for AJAX update: {e}")
+            print(f"Error getting shipping rate: {e}")
             shipping_cost = Decimal('0')
 
         total = cart_total_price + shipping_cost
+        print(f"New total: {total}")
 
-        return JsonResponse({
+        response_data = {
             'success': True,
             'shipping_cost': float(shipping_cost),
             'total': float(total)
-        })
+        }
+        print(f"Sending response: {response_data}")
+        return JsonResponse(response_data)
 
     # AJAX: Handle zone fetch
     if request.method == 'POST' and 'city_id' in request.POST and request.headers.get('X-Requested-With') == 'XMLHttpRequest':

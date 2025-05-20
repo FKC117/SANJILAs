@@ -292,31 +292,12 @@
                 <div class="checkout-section mb-5">
                     <h4 class="section-title">Shipping Address</h4>
                     <div class="row g-3">
-                        <!-- Shipping Location -->
-                        <div class="col-12 mb-3">
-                            <label class="form-label">Shipping Location *</label>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="shipping_location" id="inside_dhaka_checkout" value="inside_dhaka" {% if shipping_location == 'inside_dhaka' %}checked{% endif %} required>
-                                <label class="form-check-label d-flex justify-content-between w-100" for="inside_dhaka_checkout">
-                                    <span>Inside Dhaka</span>
-                                    <span>৳{{ shipping_rates.inside_dhaka }}</span>
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="shipping_location" id="outside_dhaka_checkout" value="outside_dhaka" {% if shipping_location == 'outside_dhaka' %}checked{% endif %}>
-                                <label class="form-check-label d-flex justify-content-between w-100" for="outside_dhaka_checkout">
-                                    <span>Outside Dhaka</span>
-                                    <span>৳{{ shipping_rates.outside_dhaka }}</span>
-                                </label>
-                            </div>
-                        </div>
-                        
                         <div class="col-md-6">
                             <label for="city" class="form-label">City/Town *</label>
                             <select class="form-select" id="city" name="city" required>
                                 <option value="" selected disabled>Select City</option>
                                 {% for city in cities %}
-                                <option value="{{ city.city_id }}">{{ city.city_name }}</option>
+                                <option value="{{ city.city_id }}" data-is-dhaka="{% if city.city_id == 1 %}true{% else %}false{% endif %}">{{ city.city_name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -342,6 +323,25 @@
                                 Please enter a complete address (minimum 10 characters).
                             </div>
                             <small class="form-text text-muted">Please provide a detailed address including road/street name, house/building number, and any landmarks.</small>
+                        </div>
+
+                        <!-- Moved Shipping Location here -->
+                        <div class="col-12 mt-3">
+                            <label class="form-label">Shipping Location *</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="shipping_location" id="inside_dhaka_checkout" value="inside_dhaka" {% if shipping_location == 'inside_dhaka' %}checked{% endif %} required>
+                                <label class="form-check-label d-flex justify-content-between w-100" for="inside_dhaka_checkout">
+                                    <span>Inside Dhaka</span>
+                                    <span>৳{{ shipping_rates.inside_dhaka }}</span>
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="shipping_location" id="outside_dhaka_checkout" value="outside_dhaka" {% if shipping_location == 'outside_dhaka' %}checked{% endif %}>
+                                <label class="form-check-label d-flex justify-content-between w-100" for="outside_dhaka_checkout">
+                                    <span>Outside Dhaka</span>
+                                    <span>৳{{ shipping_rates.outside_dhaka }}</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -463,8 +463,23 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize form and button variables first
+        const checkoutForm = document.getElementById('checkout-form');
+        const placeOrderBtn = document.getElementById('place-order-btn');
+        const addressField = document.getElementById('address');
+        const addressError = document.getElementById('address-error');
+        
+        // Initialize Select2 for dropdowns
+        const citySelect = $('#city');
+        const zoneSelect = $('#zone');
+        const areaSelect = $('#area');
+        
+        // Initialize shipping location elements
+        const insideDhakaRadio = document.getElementById('inside_dhaka_checkout');
+        const outsideDhakaRadio = document.getElementById('outside_dhaka_checkout');
+        
         // Initialize Select2 for city dropdown
-        $('#city').select2({
+        citySelect.select2({
             theme: 'bootstrap-5',
             width: '100%',
             placeholder: 'Select City',
@@ -472,7 +487,7 @@
         });
         
         // Initialize Select2 for zone dropdown
-        $('#zone').select2({
+        zoneSelect.select2({
             theme: 'bootstrap-5',
             width: '100%',
             placeholder: 'Select Zone',
@@ -480,13 +495,13 @@
         });
         
         // Initialize Select2 for area dropdown
-        $('#area').select2({
+        areaSelect.select2({
             theme: 'bootstrap-5',
             width: '100%',
             placeholder: 'Select Area (if not found, leave blank)',
             allowClear: true
         });
-        
+
         // Helper function to show notifications
         function showNotification(type, message) {
             let notificationClass = 'notification-success';
@@ -504,24 +519,11 @@
                 });
             }, 3000);
         }
-        
-        // City/Zone/Area dynamic dropdowns
-        const citySelect = $('#city');
-        const zoneSelect = $('#zone');
-        const areaSelect = $('#area');
-        
-        // Shipping location radio buttons
-        const shippingLocationRadios = document.querySelectorAll('input[name="shipping_location"]');
-        
-        // Handle shipping location change
-        shippingLocationRadios.forEach(radio => {
-            radio.addEventListener('change', function() {
-                updateShippingCost(this.value);
-            });
-        });
-        
+
         // Function to update shipping cost via AJAX
         function updateShippingCost(location) {
+            console.log('Updating shipping cost for location:', location);
+            
             $.ajax({
                 url: '{% url "checkout" %}',
                 type: 'POST',
@@ -529,30 +531,75 @@
                     'shipping_location': location,
                     'csrfmiddlewaretoken': '{{ csrf_token }}'
                 },
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Cache-Control': 'no-cache'
+                },
+                cache: false,
                 success: function(data) {
+                    console.log('Shipping cost update response:', data);
                     if (data.success) {
                         // Update shipping cost display
-                        const shippingCostElements = document.querySelectorAll('.shipping-cost');
-                        shippingCostElements.forEach(el => {
-                            el.textContent = '৳' + data.shipping_cost;
+                        $('.shipping-cost').each(function() {
+                            $(this).text('৳' + data.shipping_cost);
+                            console.log('Updated shipping cost display:', $(this).text());
                         });
                         
                         // Update total
-                        const totalElements = document.querySelectorAll('.order-total');
-                        totalElements.forEach(el => {
-                            el.textContent = '৳' + data.total;
+                        $('.order-total').each(function() {
+                            $(this).text('৳' + data.total);
+                            console.log('Updated total display:', $(this).text());
                         });
+                    } else {
+                        console.error('Failed to update shipping cost:', data);
+                        showNotification('error', 'Failed to update shipping cost. Please try again.');
                     }
                 },
-                error: function() {
+                error: function(xhr, status, error) {
+                    console.error('AJAX error:', {xhr, status, error});
                     showNotification('error', 'Failed to update shipping cost. Please try again.');
                 }
             });
         }
+
+        // Handle shipping location radio button changes
+        insideDhakaRadio.addEventListener('change', function() {
+            console.log('Inside Dhaka radio changed:', this.checked);
+            if (this.checked) {
+                updateShippingCost('inside_dhaka');
+            }
+        });
+
+        outsideDhakaRadio.addEventListener('change', function() {
+            console.log('Outside Dhaka radio changed:', this.checked);
+            if (this.checked) {
+                updateShippingCost('outside_dhaka');
+            }
+        });
         
         // Handle city selection change
         citySelect.on('change', function() {
             const selectedCityId = this.value;
+            const selectedOption = this.options[this.selectedIndex];
+            const isDhaka = selectedOption.getAttribute('data-is-dhaka') === 'true';
+            
+            console.log('City changed:', {
+                cityId: selectedCityId,
+                cityName: selectedOption.text,
+                isDhaka: isDhaka,
+                dataAttribute: selectedOption.getAttribute('data-is-dhaka')
+            });
+            
+            // Auto-select shipping location based on city
+            if (isDhaka) {
+                console.log('Setting to Inside Dhaka');
+                insideDhakaRadio.checked = true;
+                updateShippingCost('inside_dhaka');
+            } else {
+                console.log('Setting to Outside Dhaka');
+                outsideDhakaRadio.checked = true;
+                updateShippingCost('outside_dhaka');
+            }
             
             // Clear and disable zone and area dropdowns
             zoneSelect.empty().append('<option value="" selected disabled>Select Zone</option>').prop('disabled', true).trigger('change');
@@ -570,6 +617,11 @@
                         'city_id': selectedCityId,
                         'csrfmiddlewaretoken': '{{ csrf_token }}'
                     },
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Cache-Control': 'no-cache'
+                    },
+                    cache: false,
                     success: function(data) {
                         if (data.success) {
                             // Add zone options
@@ -588,7 +640,7 @@
                 });
             }
         });
-        
+
         // Handle zone selection change
         zoneSelect.on('change', function() {
             const selectedZoneId = this.value;
@@ -626,25 +678,14 @@
                 });
             }
         });
-        
-        // Form validation
-        const checkoutForm = document.getElementById('checkout-form');
-        const placeOrderBtn = document.getElementById('place-order-btn');
-        const addressField = document.getElementById('address');
-        const addressError = document.getElementById('address-error');
-        
-        if(checkoutForm) {
-            // Add input event listener for address field
-            addressField.addEventListener('input', function() {
-                if (this.value.length < 10) {
-                    this.classList.add('is-invalid');
-                    addressError.style.display = 'block';
-                } else {
-                    this.classList.remove('is-invalid');
-                    addressError.style.display = 'none';
-                }
+
+        // Reset shipping location manual change when form is reset
+        if (checkoutForm) {
+            checkoutForm.addEventListener('reset', function() {
+                console.log('Form reset - clearing shipping location manual change');
             });
 
+            // Form validation
             checkoutForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
@@ -686,6 +727,19 @@
                     if(firstInvalid) {
                         firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
+                }
+            });
+        }
+
+        // Add input event listener for address field
+        if (addressField) {
+            addressField.addEventListener('input', function() {
+                if (this.value.length < 10) {
+                    this.classList.add('is-invalid');
+                    addressError.style.display = 'block';
+                } else {
+                    this.classList.remove('is-invalid');
+                    addressError.style.display = 'none';
                 }
             });
         }
