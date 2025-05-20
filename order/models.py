@@ -1,6 +1,7 @@
 from django.db import models
 from shop.models import Product
 from django.core.validators import MinLengthValidator
+from django.contrib.auth.models import User
 # Create your models here.
 class ShippingRate(models.Model):
     """Model for different shipping rates based on location"""
@@ -97,30 +98,25 @@ class OrderItem(models.Model):
         return self.quantity * self.unit_price
 
 class StockMovement(models.Model):
-    STOCK_MOVEMENT_TYPES = [
-        ('RESTOCK', 'Restock'),
-        ('SALE', 'Sales'),
-        ('RETURN', 'Return'),
+    MOVEMENT_TYPES = [
+        ('SALE', 'Sale'),
+        ('PURCHASE', 'Purchase'),
         ('ADJUSTMENT', 'Adjustment'),
-        ('PURCHASE_ORDER_IN', 'Purchase Order Received'),
-        ('PURCHASE_ORDER_OUT', 'Purchase Order Created'),
-        ('PREORDER_RESERVATION', 'Preorder Reservation'),
-        ('PREORDER_FULFILLMENT', 'Preorder Fulfilled'),
-        ('CANCELLED_ORDER', 'Cancelled Order (Stock Returned)'),
-        ('DAMAGED', 'Damaged/Lost Stock'),
-        ('INVENTORY_COUNT', 'Inventory Count Adjustment')
-
+        ('RETURN', 'Return'),
+        ('CANCELLED_ORDER', 'Cancelled Order'),
     ]
-    product = models.ForeignKey('shop.Product', on_delete=models.CASCADE)
-    quantity = models.IntegerField(help_text="Positive for stock in, negative for stock out")
-    type = models.CharField(max_length=50, choices=STOCK_MOVEMENT_TYPES)
+
+    product = models.ForeignKey('shop.Product', on_delete=models.CASCADE, related_name='stock_movements')
+    quantity = models.IntegerField()
+    type = models.CharField(max_length=20, choices=MOVEMENT_TYPES)
+    reason = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    reason = models.TextField(blank=True, null=True, help_text="Optional details about the stock movement")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
 
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.get_type_display()} of {self.quantity} for {self.product.name} at {self.created_at}"
+        return f"{self.type} - {self.product.name} ({self.quantity})"
 
 

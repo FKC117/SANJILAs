@@ -622,59 +622,51 @@ def order_detail(request, order_id):
 @staff_member_required
 @require_POST
 def update_stock(request, product_id):
-    try:
-        data = json.loads(request.body)
-        product = get_object_or_404(Product, id=product_id)
-        
-        # Update stock
-        new_stock = int(data.get('stock', 0))
-        if new_stock < 0:
-            return JsonResponse({
-                'success': False,
-                'message': 'Stock cannot be negative'
-            })
-        
-        product.stock = new_stock
-        
-        # Update preorder status
-        product.preorder = data.get('preorder', False)
-        
-        # Update availability based on stock and preorder status
-        if new_stock > 0 or product.preorder:
-            product.available = True
-        else:
-            product.available = False
-        
-        product.save()
-        
-        # Create stock movement record
-        StockMovement.objects.create(
-            product=product,
-            quantity=new_stock - product.stock,  # Difference between new and old stock
-            type='MANUAL_UPDATE',
-            reason='Manual stock update'
-        )
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Stock updated successfully'
-        })
-        
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid JSON data'
-        })
-    except ValueError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid stock value'
-        })
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        })
+    """Update product stock with movement tracking"""
+    if request.method == 'POST':
+        try:
+            product = Product.objects.get(id=product_id)
+            new_stock = int(request.POST.get('stock', 0))
+            adjustment = new_stock - product.stock
+            
+            if adjustment != 0:
+                old_stock, new_stock = product.update_stock(
+                    quantity=adjustment,
+                    movement_type='ADJUSTMENT',
+                    reason=f'Manual stock adjustment by {request.user.username}',
+                    user=request.user
+                )
+                messages.success(request, f'Stock updated from {old_stock} to {new_stock}')
+            else:
+                messages.info(request, 'No stock change needed')
+                
+        except Product.DoesNotExist:
+            messages.error(request, 'Product not found')
+        except ValueError:
+            messages.error(request, 'Invalid stock value')
+        except Exception as e:
+            messages.error(request, f'Error updating stock: {str(e)}')
+            
+    return redirect('stock_management')
+
+@staff_member_required
+def toggle_preorder(request, product_id):
+    """Toggle preorder status for a product"""
+    if request.method == 'POST':
+        try:
+            product = Product.objects.get(id=product_id)
+            product.preorder = not product.preorder
+            product.save()
+            
+            status = 'enabled' if product.preorder else 'disabled'
+            messages.success(request, f'Preorder {status} for {product.name}')
+            
+        except Product.DoesNotExist:
+            messages.error(request, 'Product not found')
+        except Exception as e:
+            messages.error(request, f'Error updating preorder status: {str(e)}')
+            
+    return redirect('stock_management')
 
 @staff_member_required
 def stock_management_view(request):
@@ -682,11 +674,39 @@ def stock_management_view(request):
     products = Product.objects.all().order_by('-created_at')
     categories = ProductCategory.objects.all()
     
+    # Get filter parameters
+    category_id = request.GET.get('category')
+    stock_status = request.GET.get('stock_status')
+    search_query = request.GET.get('search')
+    date_range = request.GET.get('date_range', '30')  # Default to last 30 days
+    
+    # Apply filters
+    if category_id:
+        products = products.filter(category_id=category_id)
+    if stock_status:
+        if stock_status == 'in_stock':
+            products = products.filter(stock__gt=10)
+        elif stock_status == 'low_stock':
+            products = products.filter(stock__gt=0, stock__lte=10)
+        elif stock_status == 'out_of_stock':
+            products = products.filter(stock=0)
+        elif stock_status == 'preorder':
+            products = products.filter(preorder=True)
+    if search_query:
+        products = products.filter(
+            Q(name__icontains=search_query) |
+            Q(sku__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
     # Get stock summary counts
     in_stock_count = Product.objects.filter(stock__gt=10).count()
     low_stock_count = Product.objects.filter(stock__gt=0, stock__lte=10).count()
     out_of_stock_count = Product.objects.filter(stock=0).count()
     preorder_count = Product.objects.filter(preorder=True).count()
+    
+    # Get recent stock movements
+    recent_movements = StockMovement.objects.select_related('product', 'created_by').order_by('-created_at')[:10]
     
     context = {
         'products': products,
@@ -695,6 +715,13 @@ def stock_management_view(request):
         'low_stock_count': low_stock_count,
         'out_of_stock_count': out_of_stock_count,
         'preorder_count': preorder_count,
+        'recent_movements': recent_movements,
+        'current_filters': {
+            'category': category_id,
+            'stock_status': stock_status,
+            'search': search_query,
+            'date_range': date_range,
+        }
     }
     return render(request, 'shop/stock_management.html', context)
 

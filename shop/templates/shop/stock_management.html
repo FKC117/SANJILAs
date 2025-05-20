@@ -228,36 +228,83 @@
                 </div>
             </div>
 
+            <!-- Recent Stock Movements -->
+            <div class="stock-movements animate__animated animate__fadeIn">
+                <h4 class="mb-3">Recent Stock Movements</h4>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Type</th>
+                                <th>Quantity</th>
+                                <th>Reason</th>
+                                <th>By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for movement in recent_movements %}
+                            <tr>
+                                <td>{{ movement.created_at|date:"M d, Y H:i" }}</td>
+                                <td>{{ movement.product.name }}</td>
+                                <td>
+                                    <span class="badge {% if movement.type == 'SALE' %}bg-danger{% elif movement.type == 'PURCHASE' %}bg-success{% elif movement.type == 'ADJUSTMENT' %}bg-warning{% elif movement.type == 'RETURN' %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ movement.get_type_display }}
+                                    </span>
+                                </td>
+                                <td class="{% if movement.quantity < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ movement.quantity }}
+                                </td>
+                                <td>{{ movement.reason }}</td>
+                                <td>{{ movement.created_by.username }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center">No recent stock movements</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Filters -->
             <div class="filter-section animate__animated animate__fadeIn">
-                <div class="row align-items-center">
-                    <div class="col-md-4">
-                        <input type="text" class="form-control search-box" id="stockSearchInput" placeholder="Search products...">
+                <form method="get" class="row align-items-center">
+                    <div class="col-md-3">
+                        <input type="text" name="search" class="form-control" placeholder="Search products..." value="{{ current_filters.search }}">
                     </div>
                     <div class="col-md-3">
-                        <select class="form-select" id="categoryFilter">
+                        <select name="category" class="form-select">
                             <option value="">All Categories</option>
                             {% for category in categories %}
-                            <option value="{{ category.id }}">{{ category.name }}</option>
+                            <option value="{{ category.id }}" {% if current_filters.category == category.id|stringformat:"i" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
                             {% endfor %}
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <select class="form-select" id="stockFilter">
+                        <select name="stock_status" class="form-select">
                             <option value="">All Stock Status</option>
-                            <option value="in_stock">In Stock</option>
-                            <option value="low_stock">Low Stock</option>
-                            <option value="out_of_stock">Out of Stock</option>
-                            <option value="preorder">Preorder</option>
+                            <option value="in_stock" {% if current_filters.stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                            <option value="low_stock" {% if current_filters.stock_status == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                            <option value="out_of_stock" {% if current_filters.stock_status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                            <option value="preorder" {% if current_filters.stock_status == 'preorder' %}selected{% endif %}>Preorder</option>
                         </select>
                     </div>
-                </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        <a href="{% url 'stock_management' %}" class="btn btn-secondary">Clear</a>
+                    </div>
+                </form>
             </div>
 
-            <!-- Stock Table -->
+            <!-- Products Table -->
             <div class="stock-table animate__animated animate__fadeIn">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table">
                         <thead>
                             <tr>
                                 <th>Product</th>
@@ -268,12 +315,9 @@
                                 <th>Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="stockTableBody">
+                        <tbody>
                             {% for product in products %}
-                            <tr data-product-id="{{ product.id }}" 
-                                data-category="{{ product.category.id }}"
-                                data-stock-status="{% if product.stock > 10 %}in_stock{% elif product.stock > 0 %}low_stock{% else %}out_of_stock{% endif %}"
-                                data-preorder="{{ product.preorder|yesno:'true,false' }}">
+                            <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         {% if product.images.exists %}
@@ -296,12 +340,13 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <div class="input-group input-group-sm">
-                                        <input type="number" class="form-control stock-input" value="{{ product.stock }}" min="0">
-                                        <button class="btn btn-outline-primary btn-stock update-stock-btn" type="button">
+                                    <form method="post" action="{% url 'update_stock' product.id %}" class="d-flex align-items-center">
+                                        {% csrf_token %}
+                                        <input type="number" name="stock" class="form-control stock-input" value="{{ product.stock }}" min="0">
+                                        <button type="submit" class="btn btn-outline-primary btn-stock ms-2">
                                             <i class="fas fa-save"></i>
                                         </button>
-                                    </div>
+                                    </form>
                                 </td>
                                 <td>
                                     <span class="stock-status {% if product.stock > 10 %}stock-in{% elif product.stock > 0 %}stock-low{% else %}stock-out{% endif %}">
@@ -315,16 +360,23 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input preorder-toggle" type="checkbox" {% if product.preorder %}checked{% endif %}>
-                                        <label class="form-check-label">Enable Preorder</label>
-                                    </div>
+                                    <form method="post" action="{% url 'toggle_preorder' product.id %}" class="d-flex align-items-center">
+                                        {% csrf_token %}
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input preorder-toggle" type="checkbox" {% if product.preorder %}checked{% endif %} onchange="this.form.submit()">
+                                            <label class="form-check-label">Enable Preorder</label>
+                                        </div>
+                                    </form>
                                 </td>
                                 <td>
                                     <a href="{% url 'custom_product_edit' product.slug %}" class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-edit"></i> Edit
                                     </a>
                                 </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center">No products found</td>
                             </tr>
                             {% endfor %}
                         </tbody>

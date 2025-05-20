@@ -5,6 +5,7 @@ import uuid
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 #from django_summernote.fields import SummernoteTextField
+from django.contrib.auth.models import User
 
 
 
@@ -172,6 +173,51 @@ class Product(models.Model):
         else:
             self.margin = None
         super().save(*args, **kwargs)
+
+    def update_stock(self, quantity, movement_type, reason, user=None):
+        """Update stock with movement tracking"""
+        from django.db import transaction
+        from order.models import StockMovement  # Import here to avoid circular import
+        
+        with transaction.atomic():
+            old_stock = self.stock
+            self.stock += quantity
+            self.save()
+            
+            # Create stock movement record
+            StockMovement.objects.create(
+                product=self,
+                quantity=quantity,
+                type=movement_type,
+                reason=reason,
+                created_by=user
+            )
+            
+            # Update availability based on stock
+            if self.stock <= 0 and not self.preorder:
+                self.available = False
+            elif self.stock > 0:
+                self.available = True
+            self.save()
+            
+            return old_stock, self.stock
+
+    def get_stock_status(self):
+        """Get current stock status"""
+        if self.preorder:
+            return 'preorder'
+        if self.stock <= 0:
+            return 'out_of_stock'
+        if self.stock <= 10:
+            return 'low_stock'
+        return 'in_stock'
+
+    def get_stock_movements(self, days=30):
+        """Get recent stock movements from order app"""
+        from datetime import timedelta
+        from django.utils import timezone
+        start_date = timezone.now() - timedelta(days=days)
+        return self.stock_movements.filter(created_at__gte=start_date)
 
 
 class ProductImage(models.Model):

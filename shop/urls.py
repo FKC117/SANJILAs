@@ -45,6 +45,10 @@ urlpatterns = [
     # Subcategory URL
     path('manage/get-subcategories/', views.get_subcategories, name='get_subcategories'),
     path('update-stock/<int:product_id>/', views.update_stock, name='update_stock'),
+    
+    # Stock management URLs (staff only)
+    path('manage/stock/update/<int:product_id>/', views.update_stock, name='update_stock'),
+    path('manage/stock/toggle-preorder/<int:product_id>/', views.toggle_preorder, name='toggle_preorder'),
 ]
 
 if settings.DEBUG:

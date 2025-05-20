@@ -1196,3 +1196,22 @@ class Cart:
 ### Product Operations
 - `GET /products/`: List all products
 - `GET /products/<id>/`: Get product details
+
+## [UPDATED] Stock Management System
+
+- **All stock movement tracking is now handled by the `StockMovement` model in the `order` app (`SANJILAs/order/models.py`).**
+- The `shop` app no longer contains a `StockMovement` model; all references and logic have been consolidated to the `order` app.
+- The `Product` model in the `shop` app uses the `related_name='stock_movements'` to access all stock changes via the `order` app's model.
+- All staff/admin stock management views, forms, and templates should reference `order.models.StockMovement`.
+- Order processing, manual stock adjustments, returns, and cancellations are all tracked in this single model for consistency and auditability.
+
+### Codebase Index (update)
+- `SANJILAs/order/models.py`: Contains the single source of truth for stock movements (`StockMovement`).
+- `SANJILAs/shop/models.py`: Product model references stock movements via the `order` app.
+
+### Detailed Implementation Guide (update)
+- **StockMovement Model**: Now only in `order/models.py`. Tracks all stock changes, including sales, returns, adjustments, and cancellations. Linked to `Product` via a ForeignKey with `related_name='stock_movements'`.
+- **Product Model**: Methods like `update_stock` and `get_stock_movements` now use the `order` app's model.
+
+### Business Logic and Implementation Details (update)
+- All business logic for stock changes, including order fulfillment, manual adjustments, and returns, is now centralized in the `order` app's `StockMovement` model. This ensures a single audit trail and simplifies reporting and debugging.
