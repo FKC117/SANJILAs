@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Financial Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        background: #2c3e50;
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 2.2rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .dashboard-header .btn-light {
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    .dashboard-header .btn-light:hover {
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+    .container-fluid {
+        padding: 0 2rem;
+    }
+    .report-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    .report-card .card-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        padding: 1rem 1.5rem;
+    }
+    .report-card .card-body {
+        padding: 1.5rem;
+    }
+    .report-section {
+        margin-bottom: 2rem;
+    }
+    .report-section:last-child {
+        margin-bottom: 0;
+    }
+    .report-section h5 {
+        color: #2c3e50;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    .report-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .report-item:last-child {
+        border-bottom: none;
+    }
+    .report-item-label {
+        color: #6c757d;
+    }
+    .report-item-value {
+        font-weight: 500;
+    }
+    .report-item-value.positive {
+        color: #28a745;
+    }
+    .report-item-value.negative {
+        color: #dc3545;
+    }
+    .report-total {
+        font-weight: 600;
+        font-size: 1.1rem;
+        padding-top: 0.5rem;
+        border-top: 2px solid #e9ecef;
+    }
+    .nav-buttons {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 1000;
+    }
+    .nav-buttons .btn {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        margin-left: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Financial Reports</h1>
+            <div class="d-flex gap-3">
+                <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-light">
+                    <i class="fas fa-chart-line me-2"></i>Accounting Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Balance Sheet -->
+    <div class="report-card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Balance Sheet</h5>
+            <small class="text-muted">As of {{ balance_sheet_date|date:"F d, Y" }}</small>
+        </div>
+        <div class="card-body">
+            <!-- Assets -->
+            <div class="report-section">
+                <h5>Assets</h5>
+                {% for asset in balance_sheet.assets %}
+                <div class="report-item">
+                    <span class="report-item-label">{{ asset.name }}</span>
+                    <span class="report-item-value">${{ asset.amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% endfor %}
+                <div class="report-item report-total">
+                    <span>Total Assets</span>
+                    <span class="report-item-value">${{ balance_sheet.total_assets|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+
+            <!-- Liabilities -->
+            <div class="report-section">
+                <h5>Liabilities</h5>
+                {% for liability in balance_sheet.liabilities %}
+                <div class="report-item">
+                    <span class="report-item-label">{{ liability.name }}</span>
+                    <span class="report-item-value">${{ liability.amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% endfor %}
+                <div class="report-item report-total">
+                    <span>Total Liabilities</span>
+                    <span class="report-item-value">${{ balance_sheet.total_liabilities|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+
+            <!-- Equity -->
+            <div class="report-section">
+                <h5>Equity</h5>
+                {% for equity in balance_sheet.equity %}
+                <div class="report-item">
+                    <span class="report-item-label">{{ equity.name }}</span>
+                    <span class="report-item-value">${{ equity.amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% endfor %}
+                <div class="report-item report-total">
+                    <span>Total Equity</span>
+                    <span class="report-item-value">${{ balance_sheet.total_equity|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Income Statement -->
+    <div class="report-card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Income Statement</h5>
+            <small class="text-muted">For the period {{ income_statement_start_date|date:"F d, Y" }} to {{ income_statement_end_date|date:"F d, Y" }}</small>
+        </div>
+        <div class="card-body">
+            <!-- Revenue -->
+            <div class="report-section">
+                <h5>Revenue</h5>
+                {% for revenue in income_statement.revenue %}
+                <div class="report-item">
+                    <span class="report-item-label">{{ revenue.name }}</span>
+                    <span class="report-item-value">${{ revenue.amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% endfor %}
+                <div class="report-item report-total">
+                    <span>Total Revenue</span>
+                    <span class="report-item-value">${{ income_statement.total_revenue|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+
+            <!-- Expenses -->
+            <div class="report-section">
+                <h5>Expenses</h5>
+                {% for expense in income_statement.expenses %}
+                <div class="report-item">
+                    <span class="report-item-label">{{ expense.name }}</span>
+                    <span class="report-item-value">${{ expense.amount|floatformat:2|intcomma }}</span>
+                </div>
+                {% endfor %}
+                <div class="report-item report-total">
+                    <span>Total Expenses</span>
+                    <span class="report-item-value">${{ income_statement.total_expenses|floatformat:2|intcomma }}</span>
+                </div>
+            </div>
+
+            <!-- Net Income -->
+            <div class="report-section">
+                <div class="report-item report-total">
+                    <span>Net Income</span>
+                    <span class="report-item-value {% if income_statement.net_income >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ income_statement.net_income|floatformat:2|intcomma }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cash Flow Statement -->
+    <div class="report-card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Cash Flow Statement</h5>
+            <small class="text-muted">For the period {{ cash_flow_start_date|date:"F d, Y" }} to {{ cash_flow_end_date|date:"F d, Y" }}</small>
+        </div>
+        <div class="card-body">
+            <!-- Operating Activities -->
+            <div class="report-section">
+                <h5>Operating Activities</h5>
+                {% for activity in cash_flow.operating %}
+                <div class="report-item">
+                    <span class="report-item-label">{{ activity.name }}</span>
+                    <span class="report-item-value {% if activity.amount >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ activity.amount|floatformat:2|intcomma }}
+                    </span>
+                </div>
+                {% endfor %}
+                <div class="report-item report-total">
+                    <span>Net Cash from Operations</span>
+                    <span class="report-item-value {% if cash_flow.net_operating >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ cash_flow.net_operating|floatformat:2|intcomma }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Investing Activities -->
+            <div class="report-section">
+                <h5>Investing Activities</h5>
+                {% for activity in cash_flow.investing %}
+                <div class="report-item">
+                    <span class="report-item-label">{{ activity.name }}</span>
+                    <span class="report-item-value {% if activity.amount >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ activity.amount|floatformat:2|intcomma }}
+                    </span>
+                </div>
+                {% endfor %}
+                <div class="report-item report-total">
+                    <span>Net Cash from Investing</span>
+                    <span class="report-item-value {% if cash_flow.net_investing >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ cash_flow.net_investing|floatformat:2|intcomma }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Financing Activities -->
+            <div class="report-section">
+                <h5>Financing Activities</h5>
+                {% for activity in cash_flow.financing %}
+                <div class="report-item">
+                    <span class="report-item-label">{{ activity.name }}</span>
+                    <span class="report-item-value {% if activity.amount >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ activity.amount|floatformat:2|intcomma }}
+                    </span>
+                </div>
+                {% endfor %}
+                <div class="report-item report-total">
+                    <span>Net Cash from Financing</span>
+                    <span class="report-item-value {% if cash_flow.net_financing >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ cash_flow.net_financing|floatformat:2|intcomma }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Net Change in Cash -->
+            <div class="report-section">
+                <div class="report-item report-total">
+                    <span>Net Change in Cash</span>
+                    <span class="report-item-value {% if cash_flow.net_change >= 0 %}positive{% else %}negative{% endif %}">
+                        ${{ cash_flow.net_change|floatformat:2|intcomma }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation Buttons -->
+<div class="nav-buttons">
+    <a href="{% url 'accounts:journal_entries' %}" class="btn btn-primary" title="Journal Entries">
+        <i class="fas fa-book"></i>
+    </a>
+    <a href="{% url 'accounts:receivables' %}" class="btn btn-info" title="Receivables">
+        <i class="fas fa-money-bill-wave"></i>
+    </a>
+    <a href="{% url 'accounts:payables' %}" class="btn btn-warning" title="Payables">
+        <i class="fas fa-file-invoice-dollar"></i>
+    </a>
+    <a href="{% url 'accounts:expenses' %}" class="btn btn-danger" title="Expenses">
+        <i class="fas fa-receipt"></i>
+    </a>
+</div>
+{% endblock %} 

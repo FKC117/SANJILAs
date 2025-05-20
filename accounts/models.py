@@ -242,22 +242,34 @@ class MonthlyReport(models.Model):
         )
         return report
 
-class Account(models.Model):
-    """Chart of Accounts"""
-    ACCOUNT_TYPES = [
-        ('ASSET', 'Asset'),
-        ('LIABILITY', 'Liability'),
-        ('EQUITY', 'Equity'),
-        ('REVENUE', 'Revenue'),
-        ('EXPENSE', 'Expense'),
-    ]
-    
-    code = models.CharField(max_length=20, unique=True)
+class AccountCategory(models.Model):
     name = models.CharField(max_length=100)
-    type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='children')
     description = models.TextField(blank=True)
-    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Account Categories"
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+class Account(models.Model):
+    ACCOUNT_TYPES = [
+        ('asset', 'Asset'),
+        ('liability', 'Liability'),
+        ('equity', 'Equity'),
+        ('revenue', 'Revenue'),
+        ('expense', 'Expense'),
+    ]
+
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20, unique=True)
+    type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
+    category = models.ForeignKey(AccountCategory, on_delete=models.CASCADE, related_name='accounts', null=True, blank=True)
+    description = models.TextField(blank=True)
+    balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -267,19 +279,8 @@ class Account(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
-    def get_balance(self, start_date=None, end_date=None):
-        """Calculate account balance for a given period"""
-        if not start_date:
-            start_date = timezone.now().replace(day=1)
-        if not end_date:
-            end_date = timezone.now()
-            
-        transactions = Transaction.objects.filter(
-            account=self,
-            date__range=[start_date, end_date]
-        )
-        
-        return sum(t.amount for t in transactions)
+    def get_type_display(self):
+        return dict(self.ACCOUNT_TYPES).get(self.type, self.type)
 
 class Transaction(models.Model):
     """Financial Transactions"""

@@ -209,11 +209,16 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center">
             <h1 class="h3 mb-0">Product Management Dashboard</h1>
-            <div class="btn-group">
-                <button class="btn btn-period active" data-days="7">7 Days</button>
-                <button class="btn btn-period" data-days="30">30 Days</button>
-                <button class="btn btn-period" data-days="90">90 Days</button>
-                <button class="btn btn-period" data-days="365">1 Year</button>
+            <div class="d-flex gap-3">
+                <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-light">
+                    <i class="fas fa-chart-line me-2"></i>Accounting Dashboard
+                </a>
+                <div class="btn-group">
+                    <button class="btn btn-period active" data-days="7">7 Days</button>
+                    <button class="btn btn-period" data-days="30">30 Days</button>
+                    <button class="btn btn-period" data-days="90">90 Days</button>
+                    <button class="btn btn-period" data-days="365">1 Year</button>
+                </div>
             </div>
         </div>
     </div>

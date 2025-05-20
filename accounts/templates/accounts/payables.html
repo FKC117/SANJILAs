@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Payables{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        background: #2c3e50;
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 2.2rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .dashboard-header .btn-light {
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    .dashboard-header .btn-light:hover {
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+    .container-fluid {
+        padding: 0 2rem;
+    }
+    .form-card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    .form-card .card-header {
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+        padding: 1rem 1.5rem;
+    }
+    .form-card .card-body {
+        padding: 1.5rem;
+    }
+    .nav-buttons {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        z-index: 1000;
+    }
+    .nav-buttons .btn {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 50%;
+        margin-left: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Payables</h1>
+            <div class="d-flex gap-3">
+                <a href="{% url 'accounts:accounting_dashboard' %}" class="btn btn-light">
+                    <i class="fas fa-chart-line me-2"></i>Accounting Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Entry Form -->
+    <div class="form-card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">New Payable</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.supplier.id_for_label }}" class="form-label">Supplier</label>
+                        {{ form.supplier }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.invoice_number.id_for_label }}" class="form-label">Invoice Number</label>
+                        {{ form.invoice_number }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.date.id_for_label }}" class="form-label">Date</label>
+                        {{ form.date }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.due_date.id_for_label }}" class="form-label">Due Date</label>
+                        {{ form.due_date }}
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.amount.id_for_label }}" class="form-label">Amount</label>
+                        {{ form.amount }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
+                        {{ form.status }}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                    {{ form.notes }}
+                </div>
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Save Payable
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payables List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Recent Payables</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Invoice #</th>
+                            <th>Supplier</th>
+                            <th>Date</th>
+                            <th>Due Date</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Balance</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payable in payables %}
+                        <tr>
+                            <td>{{ payable.invoice_number }}</td>
+                            <td>{{ payable.supplier.name }}</td>
+                            <td>{{ payable.date|date:"M d, Y" }}</td>
+                            <td>{{ payable.due_date|date:"M d, Y" }}</td>
+                            <td class="text-end">${{ payable.amount|floatformat:2|intcomma }}</td>
+                            <td class="text-end">${{ payable.paid_amount|floatformat:2|intcomma }}</td>
+                            <td class="text-end">${{ payable.balance|floatformat:2|intcomma }}</td>
+                            <td>
+                                <span class="badge {% if payable.status == 'PAID' %}bg-success
+                                    {% elif payable.status == 'OVERDUE' %}bg-danger
+                                    {% elif payable.status == 'PARTIAL' %}bg-warning
+                                    {% else %}bg-info{% endif %}">
+                                    {{ payable.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center">No payables found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Navigation Buttons -->
+<div class="nav-buttons">
+    <a href="{% url 'accounts:journal_entries' %}" class="btn btn-primary" title="Journal Entries">
+        <i class="fas fa-book"></i>
+    </a>
+    <a href="{% url 'accounts:receivables' %}" class="btn btn-info" title="Receivables">
+        <i class="fas fa-money-bill-wave"></i>
+    </a>
+    <a href="{% url 'accounts:expenses' %}" class="btn btn-danger" title="Expenses">
+        <i class="fas fa-receipt"></i>
+    </a>
+    <a href="{% url 'accounts:revenue' %}" class="btn btn-success" title="Revenue">
+        <i class="fas fa-money-bill-wave"></i>
+    </a>
+</div>
+{% endblock %} 

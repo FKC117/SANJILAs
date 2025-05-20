@@ -1,348 +1,216 @@
-{% extends 'admin/base_site.html' %}
+{% extends 'base.html' %}
 {% load static %}
-{% load humanize %}
 
-{% block extrastyle %}
-{{ block.super }}
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-<style>
-    .dashboard-card {
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
-    }
-    .dashboard-card:hover {
-        transform: translateY(-5px);
-    }
-    .chart-container {
-        position: relative;
-        margin: auto;
-        height: 300px;
-        width: 100%;
-    }
-    .notification-item {
-        border-left: 4px solid #007bff;
-        padding: 10px;
-        margin-bottom: 10px;
-        background: #f8f9fa;
-    }
-    .activity-item {
-        padding: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    .summary-card {
-        background: linear-gradient(45deg, #007bff, #0056b3);
-        color: white;
-    }
-    .summary-card .card-body {
-        padding: 1.5rem;
-    }
-    .summary-card h3 {
-        font-size: 1.5rem;
-        margin-bottom: 0.5rem;
-    }
-    .summary-card p {
-        font-size: 2rem;
-        font-weight: bold;
-        margin-bottom: 0;
-    }
-    .btn-period {
-        margin: 0 5px;
-    }
-    .btn-period.active {
-        background-color: #0056b3;
-        color: white;
-    }
-</style>
-{% endblock %}
+{% block title %}Accounting Dashboard{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Header with Period Selector -->
+<div class="container-fluid py-4">
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <h2 class="mb-0">Dashboard Overview</h2>
-                    <div class="btn-group">
-                        <button class="btn btn-outline-primary btn-period active" data-days="7">7 Days</button>
-                        <button class="btn btn-outline-primary btn-period" data-days="30">30 Days</button>
-                        <button class="btn btn-outline-primary btn-period" data-days="90">90 Days</button>
-                        <button class="btn btn-outline-primary btn-period" data-days="365">1 Year</button>
-                    </div>
-                </div>
-            </div>
+            <h1 class="h3 mb-0">Accounting Dashboard</h1>
+            <p class="text-muted">Financial overview for {{ date_range.start|date:"M d, Y" }} to {{ date_range.end|date:"M d, Y" }}</p>
         </div>
     </div>
 
     <!-- Summary Cards -->
     <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card summary-card">
+        <!-- Receivables Summary -->
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h3>Today's Sales</h3>
-                    <p id="today-sales">৳{{ financial_summary.today.total_sales|floatformat:2|intcomma }}</p>
-                    <small>{{ financial_summary.today.total_orders }} Orders</small>
+                    <h5 class="card-title text-primary">Receivables</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="mb-0">৳{{ receivables_summary.total|floatformat:2 }}</h3>
+                        <span class="badge bg-primary">{{ receivables_summary.count }} Total</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 5px;">
+                        <div class="progress-bar bg-success" style="width: {{ receivables_summary.pending|div:receivables_summary.total|mul:100 }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>Pending: ৳{{ receivables_summary.pending|floatformat:2 }}</span>
+                        <span>Overdue: ৳{{ receivables_summary.overdue|floatformat:2 }}</span>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card summary-card" style="background: linear-gradient(45deg, #28a745, #1e7e34);">
+
+        <!-- Payables Summary -->
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h3>Monthly Sales</h3>
-                    <p id="monthly-sales">৳{{ financial_summary.month.total_sales|floatformat:2|intcomma }}</p>
-                    <small>{{ financial_summary.month.total_orders }} Orders</small>
+                    <h5 class="card-title text-danger">Payables</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="mb-0">৳{{ payables_summary.total|floatformat:2 }}</h3>
+                        <span class="badge bg-danger">{{ payables_summary.count }} Total</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 5px;">
+                        <div class="progress-bar bg-warning" style="width: {{ payables_summary.pending|div:payables_summary.total|mul:100 }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>Pending: ৳{{ payables_summary.pending|floatformat:2 }}</span>
+                        <span>Overdue: ৳{{ payables_summary.overdue|floatformat:2 }}</span>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card summary-card" style="background: linear-gradient(45deg, #ffc107, #d39e00);">
+
+        <!-- Pathao Summary -->
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h3>Last 30 Days</h3>
-                    <p id="thirty-days-sales">৳{{ financial_summary.thirty_days.total_sales|floatformat:2|intcomma }}</p>
-                    <small>{{ financial_summary.thirty_days.total_orders }} Orders</small>
+                    <h5 class="card-title text-info">Pathao Collections</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="mb-0">৳{{ pathao_summary.total|floatformat:2 }}</h3>
+                        <span class="badge bg-info">{{ pathao_summary.count }} Total</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 5px;">
+                        <div class="progress-bar bg-info" style="width: {{ pathao_summary.pending|div:pathao_summary.total|mul:100 }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>Pending: ৳{{ pathao_summary.pending|floatformat:2 }}</span>
+                        <span>Overdue: ৳{{ pathao_summary.overdue|floatformat:2 }}</span>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card summary-card" style="background: linear-gradient(45deg, #dc3545, #bd2130);">
+
+        <!-- Expenses Summary -->
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="card h-100">
                 <div class="card-body">
-                    <h3>Monthly Expenses</h3>
-                    <p id="monthly-expenses">৳{{ financial_summary.month.expenses|floatformat:2|intcomma }}</p>
-                    <small>Including Salary & Ads</small>
+                    <h5 class="card-title text-success">Expenses</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="mb-0">৳{{ expense_summary.total|floatformat:2 }}</h3>
+                        <span class="badge bg-success">{{ expense_summary.count }} Total</span>
+                    </div>
+                    <div class="progress mb-3" style="height: 5px;">
+                        <div class="progress-bar bg-success" style="width: {{ expense_summary.recent|div:expense_summary.total|mul:100 }}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span>Recent: ৳{{ expense_summary.recent|floatformat:2 }}</span>
+                        <span>{{ expense_summary.recent_count }} This Month</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Charts Row -->
-    <div class="row mb-4">
-        <!-- Sales Trend Chart -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Sales Trend</h5>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="salesChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Product Performance Chart -->
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Top Products</h5>
-                </div>
-                <div class="card-body">
-                    <div class="chart-container">
-                        <canvas id="productChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Activities and Notifications -->
+    <!-- Recent Transactions -->
     <div class="row">
-        <!-- Recent Activities -->
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Recent Activities</h5>
+        <!-- Recent Receivables -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Receivables</h5>
+                    <a href="{% url 'receivables_list' %}" class="btn btn-sm btn-primary">View All</a>
                 </div>
                 <div class="card-body">
-                    {% for activity in recent_activities %}
-                    <div class="activity-item">
-                        <strong>{{ activity.admin.username }}</strong>
-                        <span class="text-muted">{{ activity.get_activity_type_display }}</span>
-                        <p class="mb-0">{{ activity.description }}</p>
-                        <small class="text-muted">{{ activity.created_at|timesince }} ago</small>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Customer</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for receivable in recent_receivables %}
+                                <tr>
+                                    <td>{{ receivable.invoice_number }}</td>
+                                    <td>{{ receivable.customer.name }}</td>
+                                    <td>৳{{ receivable.amount|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ receivable.status|lower }}">
+                                            {{ receivable.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ receivable.due_date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    {% empty %}
-                    <p class="text-muted">No recent activities</p>
-                    {% endfor %}
                 </div>
             </div>
         </div>
-        
-        <!-- Notifications -->
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Notifications</h5>
+
+        <!-- Recent Payables -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Payables</h5>
+                    <a href="{% url 'payables_list' %}" class="btn btn-sm btn-primary">View All</a>
                 </div>
                 <div class="card-body">
-                    {% for notification in recent_notifications %}
-                    <div class="notification-item">
-                        <h6 class="mb-1">{{ notification.title }}</h6>
-                        <p class="mb-1">{{ notification.message }}</p>
-                        <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th>Supplier</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Due Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payable in recent_payables %}
+                                <tr>
+                                    <td>{{ payable.invoice_number }}</td>
+                                    <td>{{ payable.supplier.name }}</td>
+                                    <td>৳{{ payable.amount|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ payable.status|lower }}">
+                                            {{ payable.status }}
+                                        </span>
+                                    </td>
+                                    <td>{{ payable.due_date|date:"M d, Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    {% empty %}
-                    <p class="text-muted">No new notifications</p>
-                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'add_receivable' %}" class="btn btn-primary w-100">
+                                <i class="fas fa-plus"></i> New Receivable
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'add_payable' %}" class="btn btn-danger w-100">
+                                <i class="fas fa-plus"></i> New Payable
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'add_expense' %}" class="btn btn-success w-100">
+                                <i class="fas fa-plus"></i> New Expense
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'add_journal_entry' %}" class="btn btn-info w-100">
+                                <i class="fas fa-plus"></i> New Journal Entry
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extrajs %}
-{{ block.super }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-let salesChart, productChart;
-const currencySymbol = '৳';
-
-// Initialize charts
-document.addEventListener('DOMContentLoaded', function() {
-    // Set up sales chart
-    const salesCtx = document.getElementById('salesChart').getContext('2d');
-    salesChart = new Chart(salesCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [
-                {
-                    label: 'Sales',
-                    data: [],
-                    borderColor: '#007bff',
-                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                },
-                {
-                    label: 'Orders',
-                    data: [],
-                    borderColor: '#28a745',
-                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    yAxisID: 'y1'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
-            scales: {
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
-                        display: true,
-                        text: 'Sales (৳)'
-                    }
-                },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    title: {
-                        display: true,
-                        text: 'Orders'
-                    },
-                    grid: {
-                        drawOnChartArea: false
-                    }
-                }
-            }
-        }
-    });
-
-    // Set up product chart
-    const productCtx = document.getElementById('productChart').getContext('2d');
-    productChart = new Chart(productCtx, {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Sales',
-                data: [],
-                backgroundColor: 'rgba(0, 123, 255, 0.8)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-            scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Sales (৳)'
-                    }
-                }
-            }
-        }
-    });
-
-    // Load initial data
-    updateCharts(30);
-
-    // Set up period buttons
-    document.querySelectorAll('.btn-period').forEach(button => {
-        button.addEventListener('click', function() {
-            document.querySelectorAll('.btn-period').forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            updateCharts(parseInt(this.dataset.days));
-        });
-    });
-});
-
-// Update charts with new data
-function updateCharts(days) {
-    // Fetch sales data
-    fetch(`/accounts/dashboard/sales-data/?days=${days}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                const salesData = data.data.daily_data;
-                const summary = data.data.summary;
-
-                // Update sales chart
-                salesChart.data.labels = salesData.map(d => d.date);
-                salesChart.data.datasets[0].data = salesData.map(d => d.sales);
-                salesChart.data.datasets[1].data = salesData.map(d => d.orders);
-                salesChart.update();
-
-                // Update summary cards
-                document.getElementById('thirty-days-sales').textContent = 
-                    currencySymbol + summary.total_sales.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            }
-        })
-        .catch(error => console.error('Error fetching sales data:', error));
-
-    // Fetch product performance data
-    fetch(`/accounts/dashboard/product-performance/?days=${days}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                const productData = data.data.products;
-                const summary = data.data.summary;
-
-                // Update product chart
-                productChart.data.labels = productData.map(p => p.name);
-                productChart.data.datasets[0].data = productData.map(p => p.total_sales);
-                productChart.update();
-            }
-        })
-        .catch(error => console.error('Error fetching product data:', error));
-}
-</script>
 {% endblock %} 

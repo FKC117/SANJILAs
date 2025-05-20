@@ -10,13 +10,14 @@ from .models import (
     MonthlyReport, AdminActivity, SystemNotification,
     Account, Transaction, JournalEntry, JournalEntryLine,
     Receivable, Payable, Expense, Revenue,
-    ProfitLossReport, BalanceSheetReport
+    ProfitLossReport, BalanceSheetReport, AccountCategory
 )
 from shop.models import Product
 from order.models import Order, OrderItem
 from django.contrib import messages
 from django.urls import reverse
 from decimal import Decimal
+from .forms import JournalEntryForm, ReceivableForm, PayableForm, ExpenseForm, RevenueForm, AccountForm, AccountCategoryForm
 
 def is_superuser(user):
     return user.is_superuser
@@ -69,7 +70,7 @@ def product_dashboard(request):
         'today': today,
         'products': products,
     }
-    return render(request, 'shop/product_dashboard.html', context)
+    return render(request, 'accounts/product_dashboard.html', context)
 
 def get_date_range(request):
     """Helper function to get date range from request parameters"""
@@ -539,13 +540,19 @@ def accounting_dashboard(request):
         date__range=[start_date, end_date]
     ).aggregate(total=Sum('amount'))['total'] or 0
     
+    # Calculate total receivables (amount - paid_amount)
     total_receivables = Receivable.objects.filter(
         status__in=['PENDING', 'PARTIAL', 'OVERDUE']
-    ).aggregate(total=Sum('balance'))['total'] or 0
+    ).aggregate(
+        total=Sum('amount') - Sum('paid_amount')
+    )['total'] or 0
     
+    # Calculate total payables (amount - paid_amount)
     total_payables = Payable.objects.filter(
         status__in=['PENDING', 'PARTIAL', 'OVERDUE']
-    ).aggregate(total=Sum('balance'))['total'] or 0
+    ).aggregate(
+        total=Sum('amount') - Sum('paid_amount')
+    )['total'] or 0
     
     # Get recent transactions
     recent_transactions = Transaction.objects.select_related(
@@ -592,106 +599,196 @@ def accounting_dashboard(request):
     
     return render(request, 'accounts/accounting_dashboard.html', context)
 
-@user_passes_test(is_superuser)
+@login_required
 def chart_of_accounts(request):
-    """View and manage chart of accounts"""
-    accounts = Account.objects.select_related('parent').order_by('code')
-    return render(request, 'accounts/chart_of_accounts.html', {'accounts': accounts})
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type')
+        
+        if form_type == 'category':
+            form = AccountCategoryForm(request.POST)
+            if form.is_valid():
+                form.save()
+                return redirect('accounts:chart_of_accounts')
+        else:
+            form = AccountForm(request.POST)
+            if form.is_valid():
+                form.save()
+                return redirect('accounts:chart_of_accounts')
+    else:
+        form = AccountForm()
+        category_form = AccountCategoryForm()
+
+    # Get or create default categories for e-commerce
+    default_categories = [
+        {
+            'name': 'Assets',
+            'description': 'Resources owned by the business',
+            'accounts': [
+                {'name': 'Cash', 'code': '1000', 'type': 'asset', 'description': 'Cash in bank and on hand'},
+                {'name': 'Accounts Receivable', 'code': '1100', 'type': 'asset', 'description': 'Amounts owed by customers'},
+                {'name': 'Inventory', 'code': '1200', 'type': 'asset', 'description': 'Products available for sale'},
+                {'name': 'Prepaid Expenses', 'code': '1300', 'type': 'asset', 'description': 'Expenses paid in advance'},
+            ]
+        },
+        {
+            'name': 'Liabilities',
+            'description': 'Amounts owed to others',
+            'accounts': [
+                {'name': 'Accounts Payable', 'code': '2000', 'type': 'liability', 'description': 'Amounts owed to suppliers'},
+                {'name': 'Sales Tax Payable', 'code': '2100', 'type': 'liability', 'description': 'Sales tax collected from customers'},
+                {'name': 'Wages Payable', 'code': '2200', 'type': 'liability', 'description': 'Wages owed to employees'},
+            ]
+        },
+        {
+            'name': 'Equity',
+            'description': 'Owner\'s interest in the business',
+            'accounts': [
+                {'name': 'Common Stock', 'code': '3000', 'type': 'equity', 'description': 'Owner\'s investment in the business'},
+                {'name': 'Retained Earnings', 'code': '3100', 'type': 'equity', 'description': 'Accumulated profits'},
+            ]
+        },
+        {
+            'name': 'Revenue',
+            'description': 'Income from business activities',
+            'accounts': [
+                {'name': 'Product Sales', 'code': '4000', 'type': 'revenue', 'description': 'Revenue from product sales'},
+                {'name': 'Shipping Revenue', 'code': '4100', 'type': 'revenue', 'description': 'Revenue from shipping charges'},
+                {'name': 'Service Revenue', 'code': '4200', 'type': 'revenue', 'description': 'Revenue from services'},
+            ]
+        },
+        {
+            'name': 'Expenses',
+            'description': 'Costs incurred in running the business',
+            'accounts': [
+                {'name': 'Cost of Goods Sold', 'code': '5000', 'type': 'expense', 'description': 'Cost of products sold'},
+                {'name': 'Shipping Expenses', 'code': '5100', 'type': 'expense', 'description': 'Cost of shipping products'},
+                {'name': 'Marketing Expenses', 'code': '5200', 'type': 'expense', 'description': 'Advertising and promotion costs'},
+                {'name': 'Payroll Expenses', 'code': '5300', 'type': 'expense', 'description': 'Employee wages and benefits'},
+                {'name': 'Rent Expense', 'code': '5400', 'type': 'expense', 'description': 'Office and warehouse rent'},
+                {'name': 'Utilities', 'code': '5500', 'type': 'expense', 'description': 'Electricity, water, and other utilities'},
+                {'name': 'Website Expenses', 'code': '5600', 'type': 'expense', 'description': 'Website hosting and maintenance'},
+                {'name': 'Payment Processing Fees', 'code': '5700', 'type': 'expense', 'description': 'Credit card and payment gateway fees'},
+            ]
+        }
+    ]
+
+    # Create default categories and accounts if they don't exist
+    for category_data in default_categories:
+        category, created = AccountCategory.objects.get_or_create(
+            name=category_data['name'],
+            defaults={'description': category_data['description']}
+        )
+        
+        if created:
+            for account_data in category_data['accounts']:
+                Account.objects.create(
+                    name=account_data['name'],
+                    code=account_data['code'],
+                    type=account_data['type'],
+                    description=account_data['description'],
+                    category=category
+                )
+
+    # Get all categories with their accounts
+    account_categories = AccountCategory.objects.prefetch_related('accounts').all()
+
+    return render(request, 'accounts/chart_of_accounts.html', {
+        'form': form,
+        'category_form': category_form,
+        'account_categories': account_categories,
+    })
 
 @user_passes_test(is_superuser)
 def journal_entries(request):
-    """View and manage journal entries"""
-    entries = JournalEntry.objects.select_related(
-        'created_by'
-    ).prefetch_related(
-        'lines__account'
-    ).order_by('-date', '-created_at')
+    """View for managing journal entries"""
+    if request.method == 'POST':
+        form = JournalEntryForm(request.POST)
+        if form.is_valid():
+            journal_entry = form.save(commit=False)
+            journal_entry.created_by = request.user
+            journal_entry.save()
+            messages.success(request, 'Journal entry created successfully.')
+            return redirect('accounts:journal_entries')
+    else:
+        form = JournalEntryForm()
     
-    return render(request, 'accounts/journal_entries.html', {'entries': entries})
+    entries = JournalEntry.objects.select_related('created_by').prefetch_related('lines__account').order_by('-date', '-created_at')
+    return render(request, 'accounts/journal_entries.html', {
+        'form': form,
+        'entries': entries
+    })
 
 @user_passes_test(is_superuser)
 def receivables(request):
-    """View and manage accounts receivable"""
-    receivables = Receivable.objects.select_related(
-        'customer'
-    ).order_by('-date')
+    """View for managing receivables"""
+    if request.method == 'POST':
+        form = ReceivableForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Receivable created successfully.')
+            return redirect('accounts:receivables')
+    else:
+        form = ReceivableForm()
     
-    # Get summary statistics
-    summary = {
-        'total': receivables.aggregate(total=Sum('amount'))['total'] or 0,
-        'paid': receivables.aggregate(paid=Sum('paid_amount'))['paid'] or 0,
-        'overdue': receivables.filter(status='OVERDUE').aggregate(
-            total=Sum('balance')
-        )['total'] or 0,
-    }
-    
-    context = {
-        'receivables': receivables,
-        'summary': summary,
-    }
-    
-    return render(request, 'accounts/receivables.html', context)
+    receivables = Receivable.objects.select_related('customer').order_by('-date', '-created_at')
+    return render(request, 'accounts/receivables.html', {
+        'form': form,
+        'receivables': receivables
+    })
 
 @user_passes_test(is_superuser)
 def payables(request):
-    """View and manage accounts payable"""
-    payables = Payable.objects.select_related(
-        'supplier'
-    ).order_by('-date')
+    """View for managing payables"""
+    if request.method == 'POST':
+        form = PayableForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Payable created successfully.')
+            return redirect('accounts:payables')
+    else:
+        form = PayableForm()
     
-    # Get summary statistics
-    summary = {
-        'total': payables.aggregate(total=Sum('amount'))['total'] or 0,
-        'paid': payables.aggregate(paid=Sum('paid_amount'))['paid'] or 0,
-        'overdue': payables.filter(status='OVERDUE').aggregate(
-            total=Sum('balance')
-        )['total'] or 0,
-    }
-    
-    context = {
-        'payables': payables,
-        'summary': summary,
-    }
-    
-    return render(request, 'accounts/payables.html', context)
+    payables = Payable.objects.select_related('supplier').order_by('-date', '-created_at')
+    return render(request, 'accounts/payables.html', {
+        'form': form,
+        'payables': payables
+    })
 
 @user_passes_test(is_superuser)
 def expenses(request):
-    """View and manage expenses"""
-    expenses = Expense.objects.select_related(
-        'account', 'created_by', 'approved_by'
-    ).order_by('-date')
+    """View for managing expenses"""
+    if request.method == 'POST':
+        form = ExpenseForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Expense created successfully.')
+            return redirect('accounts:expenses')
+    else:
+        form = ExpenseForm()
     
-    # Get summary by type
-    summary = expenses.values('type').annotate(
-        total=Sum('amount')
-    ).order_by('-total')
-    
-    context = {
-        'expenses': expenses,
-        'summary': summary,
-    }
-    
-    return render(request, 'accounts/expenses.html', context)
+    expenses = Expense.objects.select_related('account').order_by('-date', '-created_at')
+    return render(request, 'accounts/expenses.html', {
+        'form': form,
+        'expenses': expenses
+    })
 
 @user_passes_test(is_superuser)
 def revenue(request):
-    """View and manage revenue"""
-    revenues = Revenue.objects.select_related(
-        'account', 'created_by'
-    ).order_by('-date')
+    """View for managing revenue"""
+    if request.method == 'POST':
+        form = RevenueForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Revenue entry created successfully.')
+            return redirect('accounts:revenue')
+    else:
+        form = RevenueForm()
     
-    # Get summary by type
-    summary = revenues.values('type').annotate(
-        total=Sum('amount')
-    ).order_by('-total')
-    
-    context = {
-        'revenues': revenues,
-        'summary': summary,
-    }
-    
-    return render(request, 'accounts/revenue.html', context)
+    revenues = Revenue.objects.select_related('account').order_by('-date', '-created_at')
+    return render(request, 'accounts/revenue.html', {
+        'form': form,
+        'revenues': revenues
+    })
 
 @user_passes_test(is_superuser)
 def financial_reports(request):

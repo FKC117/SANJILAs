@@ -4,8 +4,136 @@
 
 {% block title %}Accounting Dashboard{% endblock %}
 
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        background: #2c3e50;
+        color: white;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 2.2rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    .dashboard-header .btn-light {
+        border: 1px solid rgba(255,255,255,0.2);
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    .dashboard-header .btn-light:hover {
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+    .container-fluid {
+        padding: 0 2rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="dashboard-header">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1>Accounting Dashboard</h1>
+            <div class="d-flex gap-3">
+                <a href="{% url 'accounts:product_dashboard' %}" class="btn btn-light">
+                    <i class="fas fa-box me-2"></i>Product Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="container-fluid">
+    <!-- Navigation Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <a href="{% url 'accounts:journal_entries' %}" class="text-decoration-none">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-book fa-2x mb-3 text-primary"></i>
+                        <h5 class="card-title">Journal Entries</h5>
+                        <p class="card-text text-muted">Record financial transactions</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'accounts:receivables' %}" class="text-decoration-none">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-money-bill-wave fa-2x mb-3 text-info"></i>
+                        <h5 class="card-title">Receivables</h5>
+                        <p class="card-text text-muted">Manage customer invoices</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'accounts:payables' %}" class="text-decoration-none">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-file-invoice-dollar fa-2x mb-3 text-warning"></i>
+                        <h5 class="card-title">Payables</h5>
+                        <p class="card-text text-muted">Manage supplier bills</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'accounts:expenses' %}" class="text-decoration-none">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-receipt fa-2x mb-3 text-danger"></i>
+                        <h5 class="card-title">Expenses</h5>
+                        <p class="card-text text-muted">Track business expenses</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Second Row of Navigation Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <a href="{% url 'accounts:revenue' %}" class="text-decoration-none">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-money-bill-wave fa-2x mb-3 text-success"></i>
+                        <h5 class="card-title">Revenue</h5>
+                        <p class="card-text text-muted">Track business income</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'accounts:chart_of_accounts' %}" class="text-decoration-none">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-pie fa-2x mb-3 text-secondary"></i>
+                        <h5 class="card-title">Chart of Accounts</h5>
+                        <p class="card-text text-muted">Manage accounting accounts</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="{% url 'accounts:financial_reports' %}" class="text-decoration-none">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-file-alt fa-2x mb-3 text-dark"></i>
+                        <h5 class="card-title">Financial Reports</h5>
+                        <p class="card-text text-muted">View financial statements</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
     <!-- Financial Overview Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
