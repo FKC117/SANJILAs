@@ -606,13 +606,27 @@ function updateSummaryCards(summary) {
         }
     }
 
+    // Calculate total expenses correctly
+    const totalExpenses = summary.total_expenses || 0;
+    updateValue('total_expenses', totalExpenses);
+
+    // Add debug info to console
+    console.log('Total expenses breakdown:');
+    console.log('- Base expenses:', totalExpenses);
+    console.log('- Shipping expense:', summary.shipping_expense || 0);
+    console.log('- COD expense:', summary.cod_expense || 0);
+    console.log('Raw total_expenses from API:', summary.total_expenses);
+    console.log('Expected total (manual calculation):', 
+        (summary.total_expenses || 0) - (summary.shipping_expense || 0) - (summary.cod_expense || 0) 
+        + (summary.shipping_expense || 0) + (summary.cod_expense || 0));
+
     // Update all summary values
     if (summary) {
         console.log('Summary data available:', summary);
         updateValue('total_sales', summary.total_sales || 0);
         updateValue('gross_profit', summary.gross_profit || 0);
         updateValue('net_profit', summary.net_profit || 0);
-        updateValue('total_expenses', summary.total_expenses || 0);
+        updateValue('total_expenses', totalExpenses);
 
         // Update total orders
         const ordersElement = document.querySelector('.subtitle[data-type="total_orders"]');

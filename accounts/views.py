@@ -175,13 +175,12 @@ def get_sales_data(request):
             total=Sum(F('total_amount') - F('shipping_cost'))
         )['total'] or Decimal('0')
         
-        # Calculate shipping revenue
+        # Calculate shipping revenue/expense
         shipping_revenue = orders.aggregate(
             total=Sum('shipping_cost')
         )['total'] or Decimal('0')
         
         # Calculate COD charges (0.5% of product price for COD orders)
-        print("DEBUG - Looking for COD orders with payment_method='cash' or 'cash_on_delivery'")
         cod_orders_count = orders.filter(payment_method__in=['cash', 'cash_on_delivery']).count()
         print(f"DEBUG - Found {cod_orders_count} COD orders")
         
@@ -189,30 +188,39 @@ def get_sales_data(request):
             total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')
         )['total'] or Decimal('0')
         print(f"DEBUG - Calculated COD charges: {cod_charges}")
-        
-        # For debug: check the raw orders
-        sample_orders = orders.filter(payment_method__in=['cash', 'cash_on_delivery'])[:5].values('id', 'payment_method', 'total_amount', 'shipping_cost')
-        print(f"DEBUG - Sample COD orders: {list(sample_orders)}")
-        
-        # Check all unique payment_method values in the database
-        all_payment_methods = list(orders.values_list('payment_method', flat=True).distinct())
-        print(f"DEBUG - All payment methods in database: {all_payment_methods}")
 
-        # Get expenses for the period
-        print("6. Getting expense breakdown...")
-        try:
-            expenses = get_expense_breakdown(start_date, end_date)
-            total_expenses = Decimal(str(sum(expenses.values())))
-            print(f"7. Total expenses: {total_expenses}")
-        except Exception as expense_error:
-            print(f"7a. Expense error: {str(expense_error)}")
-            print(f"7b. Expense error type: {type(expense_error)}")
-            import traceback
-            print(f"7c. Expense traceback: {traceback.format_exc()}")
-            raise
+        # Get expenses breakdown
+        expenses = get_expense_breakdown(start_date, end_date)
+        
+        # IMPORTANT FIX: Add shipping and COD as expenses if not already included
+        # Check if shipping and COD costs are included in the expense breakdown
+        expenses_shipping = expenses.get('shipping', Decimal('0'))
+        expenses_cod = expenses.get('cod_charges', Decimal('0'))
+        
+        # If the expense breakdown doesn't have these values or they're zero,
+        # we need to add the shipping and COD from our direct calculations
+        if expenses_shipping == 0:
+            expenses['shipping'] = float(shipping_revenue)
+        
+        if expenses_cod == 0:
+            expenses['cod_charges'] = float(cod_charges)
+        
+        # Calculate total expenses - IMPORTANT: include shipping and COD
+        total_expenses = Decimal('0')
+        for expense_value in expenses.values():
+            total_expenses += Decimal(str(expense_value))
+        
+        # Double check that shipping and COD are included
+        if total_expenses == 0 or total_expenses < (shipping_revenue + cod_charges):
+            print("WARNING: Total expenses calculation may be incorrect, forcing inclusion of shipping and COD")
+            total_expenses = sum(Decimal(str(value)) for value in expenses.values() if value > 0)
+            total_expenses += shipping_revenue + cod_charges
+        
+        print(f"DEBUG - Final total expenses: {total_expenses}")
+        print(f"DEBUG - Expense breakdown: {expenses}")
+        print(f"DEBUG - Shipping: {shipping_revenue}, COD: {cod_charges}")
 
         # Calculate profits
-        print("8. Calculating profits...")
         try:
             total_cost = OrderItem.objects.filter(
                 order__order_date__range=[start_datetime, end_datetime],
@@ -223,9 +231,6 @@ def get_sales_data(request):
             print(f"9. Total cost: {total_cost}")
         except Exception as cost_error:
             print(f"9a. Cost calculation error: {str(cost_error)}")
-            print(f"9b. Cost error type: {type(cost_error)}")
-            import traceback
-            print(f"9c. Cost traceback: {traceback.format_exc()}")
             raise
 
         # All calculations using Decimal
@@ -253,7 +258,7 @@ def get_sales_data(request):
                     'total_cost': float(total_cost),
                     'gross_profit': float(gross_profit),
                     'net_profit': float(net_profit),
-                    'total_expenses': float(total_expenses),
+                    'total_expenses': float(total_expenses),  # Now includes shipping and COD properly
                     'expenses': {k: float(v) for k, v in expenses.items()},
                     'status_breakdown': {
                         status: {
@@ -626,17 +631,24 @@ def accounting_dashboard(request):
     
     # Calculate COD charges (0.50% of product price for COD orders) - EXPENSE
     cod_orders = orders.filter(payment_method__in=['cash', 'cash_on_delivery'])
-    print(f"DEBUG - COD Orders Count: {cod_orders.count()}")
-    print(f"DEBUG - COD Orders: {list(cod_orders.values('id', 'payment_method', 'total_amount', 'shipping_cost'))}")
     
     cod_charges = cod_orders.aggregate(
         total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')
     )['total'] or 0
     
-    print(f"DEBUG - COD Charges Calculated: {cod_charges}")
+    # NEW: Calculate product cost (COGS)
+    product_cost = OrderItem.objects.filter(
+        order__order_date__range=[start_date, end_date],
+        order__status__in=['delivered', 'shipped', 'pending']
+    ).aggregate(
+        total=Sum(F('quantity') * F('product__buying_price'))
+    )['total'] or 0
     
     # Calculate total revenue
     total_revenue = product_revenue + manual_revenue
+    
+    # NEW: Calculate gross profit
+    gross_profit = total_revenue - product_cost
     
     # Get regular expenses
     total_expenses = Expense.objects.filter(
@@ -647,6 +659,9 @@ def accounting_dashboard(request):
     total_shipping_expense = shipping_revenue
     total_cod_expense = cod_charges
     total_expenses = (total_expenses or 0) + total_shipping_expense + total_cod_expense
+    
+    # NEW: Calculate net profit based on gross profit and expenses
+    net_profit = gross_profit - total_expenses
     
     # Calculate total receivables (amount - paid_amount)
     total_receivables = Receivable.objects.filter(
@@ -721,8 +736,10 @@ def accounting_dashboard(request):
         'shipping_expense': total_shipping_expense,
         'cod_expense': total_cod_expense,
         'manual_revenue': manual_revenue,
+        'product_cost': product_cost,
+        'gross_profit': gross_profit,
         'total_expenses': total_expenses,
-        'net_profit': total_revenue - total_expenses,
+        'net_profit': net_profit,
         'total_receivables': total_receivables,
         'total_payables': total_payables,
         'recent_transactions': recent_transactions,
