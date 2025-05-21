@@ -21,4 +21,5 @@ urlpatterns = [
     path('expenses/<int:expense_id>/payment/', views.record_expense_payment, name='record_expense_payment'),
     path('revenue/', views.revenue, name='revenue'),
     path('reports/', views.financial_reports, name='financial_reports'),
+    path('debug/payment-methods/', views.debug_payment_methods, name='debug_payment_methods'),
 ] 

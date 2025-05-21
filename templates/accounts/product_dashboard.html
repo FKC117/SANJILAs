@@ -253,6 +253,20 @@
                 <h3>Total Sales</h3>
                 <div class="value" data-type="total_sales">৳{{ financial_summary.total_sales|floatformat:2|intcomma }}</div>
                 <div class="subtitle" data-type="total_orders">{{ financial_summary.total_orders }} Orders</div>
+                <div class="small mt-2">
+                    <div class="product-sales">Product Sales: ৳{{ financial_summary.product_sales|floatformat:2|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card" style="background: linear-gradient(135deg, #e74c3c, #c0392b);">
+                <h3>Total Expenses</h3>
+                <div class="value" data-type="total_expenses">৳{{ financial_summary.total_expenses|floatformat:2|intcomma }}</div>
+                <div class="subtitle">&nbsp;</div>
+                <div class="small mt-2">
+                    <div class="shipping-expense">Shipping Costs: ৳{{ financial_summary.shipping_expense|floatformat:2|intcomma }}</div>
+                    <div class="cod-expense">COD Charges (0.50%): ৳{{ financial_summary.cod_expense|floatformat:2|intcomma }}</div>
+                </div>
             </div>
         </div>
         <div class="col-md-3">
@@ -267,30 +281,6 @@
                 <h3>Net Profit</h3>
                 <div class="value" data-type="net_profit">৳{{ financial_summary.net_profit|floatformat:2|intcomma }}</div>
                 <div class="subtitle">After Expenses</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="summary-card expense-card">
-                <h3>Total Expenses</h3>
-                <div class="value" data-type="total_expenses">৳{{ financial_summary.total_expenses|floatformat:2|intcomma }}</div>
-                <div class="expense-breakdown">
-                    <div class="expense-item" data-type="salary">
-                        <span>Salary:</span>
-                        <span>৳{{ financial_summary.expenses.salary|floatformat:2|intcomma }}</span>
-                    </div>
-                    <div class="expense-item" data-type="advertisement">
-                        <span>Advertisement:</span>
-                        <span>৳{{ financial_summary.expenses.advertisement|floatformat:2|intcomma }}</span>
-                    </div>
-                    <div class="expense-item" data-type="shipping">
-                        <span>Shipping:</span>
-                        <span>৳{{ financial_summary.expenses.shipping|floatformat:2|intcomma }}</span>
-                    </div>
-                    <div class="expense-item" data-type="other">
-                        <span>Other:</span>
-                        <span>৳{{ financial_summary.expenses.other|floatformat:2|intcomma }}</span>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -528,6 +518,13 @@ function updateCharts(days) {
                 const salesData = data.data.daily_data;
                 const summary = data.data.summary;
 
+                // Debug: Log full summary object and specific fields
+                console.log('Full summary object:', summary);
+                console.log('shipping_expense:', summary.shipping_expense);
+                console.log('cod_expense:', summary.cod_expense);
+                console.log('shipping_revenue (old name):', summary.shipping_revenue);
+                console.log('cod_charges (old name):', summary.cod_charges);
+
                 // Update sales chart
                 if (salesChart) {
                     console.log('Updating sales chart with data:', salesData);
@@ -588,6 +585,8 @@ function updateCharts(days) {
 
 function updateSummaryCards(summary) {
     console.log('Updating summary cards with:', summary);
+    console.log('Checking for shipping_expense:', summary.shipping_expense);
+    console.log('Checking for cod_expense:', summary.cod_expense);
     
     // Helper function to update a value element
     function updateValue(type, value) {
@@ -622,6 +621,55 @@ function updateSummaryCards(summary) {
             console.log('Updated total orders to:', ordersElement.textContent);
         } else {
             console.warn('Orders element not found');
+        }
+        
+        // Update revenue breakdown
+        const productSalesElement = document.querySelector('.small .product-sales');
+        if (productSalesElement) {
+            productSalesElement.textContent = `Product Sales: ${currencySymbol}${(summary.product_sales || 0).toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}`;
+        }
+        
+        const shippingRevenueElement = document.querySelector('.small .shipping-expense');
+        if (shippingRevenueElement) {
+            // Try both field names (old and new)
+            const shippingValue = summary.shipping_expense || summary.shipping_revenue || 0;
+            shippingRevenueElement.textContent = `Shipping Costs: ${currencySymbol}${shippingValue.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}`;
+            console.log('Updated shipping expense to:', shippingValue);
+        }
+        
+        const codChargesElement = document.querySelector('.small .cod-expense');
+        if (codChargesElement) {
+            // Try both field names (old and new)
+            const codValue = summary.cod_expense || summary.cod_charges || 0;
+            codChargesElement.textContent = `COD Charges (0.50%): ${currencySymbol}${codValue.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            })}`;
+            console.log('Updated COD expense to:', codValue);
+            
+            // Force a manual calculation for debugging if value is 0
+            if (codValue === 0) {
+                console.log('COD value is 0, trying to calculate manually');
+                // Look for "cash" orders in status_breakdown
+                if (summary.status_breakdown && summary.status_breakdown.delivered) {
+                    const deliveredSales = summary.status_breakdown.delivered.sales || 0;
+                    console.log('Delivered sales:', deliveredSales);
+                    const manualCodValue = deliveredSales * 0.005;
+                    console.log('Manual COD calculation (0.5% of delivered sales):', manualCodValue);
+                    
+                    // Show the manual calculation
+                    codChargesElement.textContent = `COD Charges (0.50%): ${currencySymbol}${manualCodValue.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    })} (manually calculated)`;
+                }
+            }
         }
 
         // Update expense breakdown

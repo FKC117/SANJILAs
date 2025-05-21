@@ -1,5 +1,6 @@
 from django import template
-from decimal import Decimal, InvalidOperation
+from django.template.defaultfilters import floatformat
+import math
 
 register = template.Library()
 
@@ -7,19 +8,19 @@ register = template.Library()
 def subtract(value, arg):
     """Subtract the arg from the value."""
     try:
-        # Convert to float first to handle any numeric format
-        value_float = float(str(value))
-        arg_float = float(str(arg))
-        # Then convert to Decimal for precise arithmetic
-        return Decimal(str(value_float)) - Decimal(str(arg_float))
-    except (ValueError, TypeError, InvalidOperation):
+        return float(value) - float(arg)
+    except (ValueError, TypeError):
+        return 0
+
+@register.filter
+def abs(value):
+    """Return the absolute value."""
+    try:
+        return math.fabs(float(value))
+    except (ValueError, TypeError):
         return 0
 
 @register.filter
 def get_item(dictionary, key):
-    """Get an item from a dictionary using the key."""
-    if dictionary is None:
-        return 0
-    if not isinstance(dictionary, dict):
-        return 0
-    return dictionary.get(key, 0) 
+    """Get an item from a dictionary."""
+    return dictionary.get(key, 0) if dictionary else 0 

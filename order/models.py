@@ -84,6 +84,24 @@ class Order(models.Model):
     def __str__(self):
         return f"Order #{self.id} - {self.customer_name}"
 
+    @classmethod
+    def print_payment_methods(cls):
+        """Debug utility to print all payment methods used in orders"""
+        payment_methods = cls.objects.values_list('payment_method', flat=True).distinct()
+        print(f"All payment methods in database: {list(payment_methods)}")
+        
+        # Count orders by payment method
+        for method in payment_methods:
+            count = cls.objects.filter(payment_method=method).count()
+            print(f"Payment method '{method}': {count} orders")
+            
+            # Show a sample order with this payment method
+            sample = cls.objects.filter(payment_method=method).first()
+            if sample:
+                print(f"Sample order #{sample.id}: Total={sample.total_amount}, Shipping={sample.shipping_cost}")
+                
+        return list(payment_methods)
+
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)

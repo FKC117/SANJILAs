@@ -124,11 +124,14 @@ def get_sales_data(request):
         # Get daily sales data
         print("3. Querying daily sales data...")
         try:
-            # Get sales breakdown by status
-            status_breakdown = Order.objects.filter(
+            # Get orders for the period
+            orders = Order.objects.filter(
                 order_date__range=[start_datetime, end_datetime],
                 status__in=['delivered', 'shipped', 'pending']
-            ).values('status').annotate(
+            )
+            
+            # Get sales breakdown by status
+            status_breakdown = orders.values('status').annotate(
                 total_sales=Sum('total_amount'),
                 order_count=Count('id')
             )
@@ -147,10 +150,7 @@ def get_sales_data(request):
                 status_totals[status]['orders'] = item['order_count']
 
             # Get daily data
-            daily_data = Order.objects.filter(
-                order_date__range=[start_datetime, end_datetime],
-                status__in=['delivered', 'shipped', 'pending']
-            ).values('order_date').annotate(
+            daily_data = orders.values('order_date').annotate(
                 sales=Sum('total_amount'),
                 orders=Count('id')
             ).order_by('order_date')
@@ -169,6 +169,34 @@ def get_sales_data(request):
             total_sales += Decimal(str(item['sales'] or 0))
             total_orders += item['orders']
         print(f"5. Total sales: {total_sales}, Total orders: {total_orders}")
+        
+        # Calculate product sales (excluding shipping)
+        product_sales = orders.aggregate(
+            total=Sum(F('total_amount') - F('shipping_cost'))
+        )['total'] or Decimal('0')
+        
+        # Calculate shipping revenue
+        shipping_revenue = orders.aggregate(
+            total=Sum('shipping_cost')
+        )['total'] or Decimal('0')
+        
+        # Calculate COD charges (0.5% of product price for COD orders)
+        print("DEBUG - Looking for COD orders with payment_method='cash' or 'cash_on_delivery'")
+        cod_orders_count = orders.filter(payment_method__in=['cash', 'cash_on_delivery']).count()
+        print(f"DEBUG - Found {cod_orders_count} COD orders")
+        
+        cod_charges = orders.filter(payment_method__in=['cash', 'cash_on_delivery']).aggregate(
+            total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')
+        )['total'] or Decimal('0')
+        print(f"DEBUG - Calculated COD charges: {cod_charges}")
+        
+        # For debug: check the raw orders
+        sample_orders = orders.filter(payment_method__in=['cash', 'cash_on_delivery'])[:5].values('id', 'payment_method', 'total_amount', 'shipping_cost')
+        print(f"DEBUG - Sample COD orders: {list(sample_orders)}")
+        
+        # Check all unique payment_method values in the database
+        all_payment_methods = list(orders.values_list('payment_method', flat=True).distinct())
+        print(f"DEBUG - All payment methods in database: {all_payment_methods}")
 
         # Get expenses for the period
         print("6. Getting expense breakdown...")
@@ -218,6 +246,9 @@ def get_sales_data(request):
                 ],
                 'summary': {
                     'total_sales': float(total_sales),
+                    'product_sales': float(product_sales),
+                    'shipping_expense': float(shipping_revenue),
+                    'cod_expense': float(cod_charges),
                     'total_orders': total_orders,
                     'total_cost': float(total_cost),
                     'gross_profit': float(gross_profit),
@@ -235,7 +266,7 @@ def get_sales_data(request):
                 }
             }
         }
-        print("11. Returning response")
+        print(f"DEBUG - Response summary data: {response_data['data']['summary']}")
         return JsonResponse(response_data)
     except Exception as e:
         print(f"ERROR in get_sales_data: {str(e)}")
@@ -400,33 +431,57 @@ def get_period_summary(start_date, end_date):
     
     # Get daily sales for partial months
     daily_data = DailySales.objects.filter(
-        date__gte=start_date,
-        date__lte=end_date
+        date__range=[start_date, end_date]
     ).aggregate(
         total_sales=Sum('total_sales'),
-        total_orders=Sum('total_orders'),
-        total_cost=Sum('total_cost'),
-        total_expenses=Sum('total_expenses'),
-        total_advertisement=Sum('total_advertisement'),
-        total_salary=Sum('total_salary')
-    )
-
-    # Combine monthly and daily data
-    total_sales = (monthly_data['total_sales'] or 0) + (daily_data['total_sales'] or 0)
-    total_cost = (monthly_data['total_cost'] or 0) + (daily_data['total_cost'] or 0)
-    total_expenses = (
-        (monthly_data['total_expenses'] or 0) + (daily_data['total_expenses'] or 0) +
-        (monthly_data['total_advertisement'] or 0) + (daily_data['total_advertisement'] or 0) +
-        (monthly_data['total_salary'] or 0) + (daily_data['total_salary'] or 0)
+        total_orders=Sum('total_orders')
     )
     
-    return {
-        'total_sales': total_sales,
-        'total_orders': (monthly_data['total_orders'] or 0) + (daily_data['total_orders'] or 0),
-        'gross_profit': total_sales - total_cost,
-        'net_profit': total_sales - total_cost - total_expenses,
-        'expenses': total_expenses,
+    # Get orders for the period
+    orders = Order.objects.filter(
+        order_date__range=[start_date, end_date],
+        status__in=['delivered', 'shipped', 'pending']
+    )
+    
+    # Calculate product revenue (excluding shipping)
+    product_sales = orders.aggregate(
+        total=Sum(F('total_amount') - F('shipping_cost'))
+    )['total'] or 0
+    
+    # Calculate shipping revenue - this is actually an EXPENSE
+    shipping_expense = orders.aggregate(
+        total=Sum('shipping_cost')
+    )['total'] or 0
+    
+    # Calculate COD charges (0.50% of product price) - this is also an EXPENSE
+    cod_charges = orders.filter(payment_method__in=['cash', 'cash_on_delivery']).aggregate(
+        total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')
+    )['total'] or 0
+    
+    # Total sales is product sales only
+    total_sales = product_sales
+    
+    # Calculate expenses (including shipping and COD)
+    expenses = Expense.objects.filter(
+        date__range=[start_date, end_date]
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Add shipping costs and COD charges to expenses
+    total_expenses = expenses + shipping_expense + cod_charges
+    
+    summary = {
+        'total_sales': float(total_sales),
+        'product_sales': float(product_sales),
+        'shipping_expense': float(shipping_expense),  # For display purposes
+        'cod_expense': float(cod_charges),  # For display purposes
+        'total_orders': int(orders.count() or 0),
+        'total_cost': float(monthly_data['total_cost'] or 0),
+        'total_expenses': float(total_expenses),
+        'profit': float(total_sales - total_expenses),
+        'margin': float(total_sales - total_expenses) / float(total_sales) * 100 if total_sales else 0
     }
+    
+    return summary
 
 def get_product_analytics():
     """Get top performing products"""
@@ -489,6 +544,23 @@ def get_expense_breakdown(start_date, end_date):
         shipping=Sum('total_cost')  # Using total_cost as shipping cost
     )
 
+    # Get shipping costs from orders - this is an EXPENSE
+    shipping_costs = Order.objects.filter(
+        order_date__range=[start_date, end_date],
+        status__in=['delivered', 'shipped', 'pending']
+    ).aggregate(
+        total=Sum('shipping_cost')
+    )['total'] or 0
+
+    # Get COD charges (0.50% of product selling price for COD orders) - this is an EXPENSE
+    cod_charges = Order.objects.filter(
+        order_date__range=[start_date, end_date],
+        status__in=['delivered', 'shipped', 'pending'],
+        payment_method__in=['cash', 'cash_on_delivery']
+    ).aggregate(
+        total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')  # 0.50% of product price (excluding shipping)
+    )['total'] or 0
+
     # Get other expenses from FinancialTransaction
     other_expenses = FinancialTransaction.objects.filter(
         date__range=[start_date, end_date],
@@ -519,7 +591,8 @@ def get_expense_breakdown(start_date, end_date):
     total_expenses = {
         'salary': float(monthly_expenses['salary'] or 0) + float(salary_expenses),
         'advertisement': float(monthly_expenses['advertisement'] or 0) + float(ad_expenses),
-        'shipping': float(monthly_expenses['shipping'] or 0),
+        'shipping': float(shipping_costs),  # Shipping costs are an expense
+        'cod_charges': float(cod_charges),  # COD charges are an expense
         'other': float(other_expenses)
     }
 
@@ -537,18 +610,43 @@ def accounting_dashboard(request):
         date__range=[start_date, end_date]
     ).aggregate(total=Sum('amount'))['total'] or 0
     
-    # Get order-based revenue
-    order_revenue = Order.objects.filter(
+    # Get order details
+    orders = Order.objects.filter(
         order_date__range=[start_date, end_date],
         status__in=['delivered', 'shipped', 'pending']
-    ).aggregate(total=Sum('total_amount'))['total'] or 0
+    )
     
-    # Combine both revenue sources
-    total_revenue = manual_revenue + order_revenue
+    # Calculate product revenue (excluding shipping)
+    product_revenue = orders.aggregate(
+        total=Sum(F('total_amount') - F('shipping_cost'))
+    )['total'] or 0
     
+    # Calculate shipping revenue - EXPENSE
+    shipping_revenue = orders.aggregate(total=Sum('shipping_cost'))['total'] or 0
+    
+    # Calculate COD charges (0.50% of product price for COD orders) - EXPENSE
+    cod_orders = orders.filter(payment_method__in=['cash', 'cash_on_delivery'])
+    print(f"DEBUG - COD Orders Count: {cod_orders.count()}")
+    print(f"DEBUG - COD Orders: {list(cod_orders.values('id', 'payment_method', 'total_amount', 'shipping_cost'))}")
+    
+    cod_charges = cod_orders.aggregate(
+        total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')
+    )['total'] or 0
+    
+    print(f"DEBUG - COD Charges Calculated: {cod_charges}")
+    
+    # Calculate total revenue
+    total_revenue = product_revenue + manual_revenue
+    
+    # Get regular expenses
     total_expenses = Expense.objects.filter(
         date__range=[start_date, end_date]
     ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Add shipping and COD charges to total expenses
+    total_shipping_expense = shipping_revenue
+    total_cod_expense = cod_charges
+    total_expenses = (total_expenses or 0) + total_shipping_expense + total_cod_expense
     
     # Calculate total receivables (amount - paid_amount)
     total_receivables = Receivable.objects.filter(
@@ -582,7 +680,7 @@ def accounting_dashboard(request):
         order_monthly = Order.objects.filter(
             order_date__range=[month_start, month_end],
             status__in=['delivered', 'shipped', 'pending']
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        ).aggregate(total=Sum(F('total_amount') - F('shipping_cost')))['total'] or 0
         
         monthly_revenue.append({
             'month': month_start,
@@ -590,11 +688,21 @@ def accounting_dashboard(request):
         })
     
     # Get expense breakdown
-    expense_breakdown = Expense.objects.values(
-        'type'
-    ).annotate(
-        total=Sum('amount')
-    ).order_by('-total')
+    expense_breakdown = get_expense_breakdown(start_date, end_date)
+    
+    # Format expense breakdown for display
+    expense_display = []
+    for expense_type, amount in expense_breakdown.items():
+        expense_name = expense_type
+        if expense_type == 'shipping':
+            expense_name = 'Shipping Costs'
+        elif expense_type == 'cod_charges':
+            expense_name = 'COD Charges (0.50%)'
+        elif expense_type == 'salary':
+            expense_name = 'Payroll Expenses'
+        elif expense_type == 'advertisement':
+            expense_name = 'Marketing Expenses'
+        expense_display.append({'type': expense_name, 'total': amount})
     
     # Get overdue receivables
     overdue_receivables = Receivable.objects.filter(
@@ -609,15 +717,17 @@ def accounting_dashboard(request):
     
     context = {
         'total_revenue': total_revenue,
+        'product_revenue': product_revenue,
+        'shipping_expense': total_shipping_expense,
+        'cod_expense': total_cod_expense,
         'manual_revenue': manual_revenue,
-        'order_revenue': order_revenue,
         'total_expenses': total_expenses,
         'net_profit': total_revenue - total_expenses,
         'total_receivables': total_receivables,
         'total_payables': total_payables,
         'recent_transactions': recent_transactions,
         'monthly_revenue': monthly_revenue,
-        'expense_breakdown': expense_breakdown,
+        'expense_breakdown': expense_display,
         'overdue_receivables': overdue_receivables,
         'upcoming_payables': upcoming_payables,
     }
@@ -833,7 +943,7 @@ def payables(request):
 def expenses(request):
     """View for managing expenses"""
     if request.method == 'POST':
-        form = ExpenseForm(request.POST)
+        form = ExpenseForm(request.POST, request.FILES)
         if form.is_valid():
             expense = form.save(commit=False)
             expense.created_by = request.user
@@ -843,7 +953,7 @@ def expenses(request):
     else:
         form = ExpenseForm()
     
-    expenses = Expense.objects.select_related('account').order_by('-date', '-created_at')
+    expenses = Expense.objects.order_by('-date', '-created_at')
     return render(request, 'accounts/expenses.html', {
         'form': form,
         'expenses': expenses
@@ -896,48 +1006,69 @@ def financial_reports(request):
         except ValueError:
             pass
 
-    # Get revenue data
+    # Get orders for revenue calculation
+    orders = Order.objects.filter(
+        order_date__range=[start_date, end_date],
+        status__in=['delivered', 'shipped', 'pending']
+    )
+    
+    # Calculate product revenue only (excluding shipping and COD)
     revenue_data = {
-        'product_sales': Order.objects.filter(
-            order_date__range=[start_date, end_date],
-            status__in=['delivered', 'shipped', 'pending']
-        ).aggregate(total=Sum('total_amount'))['total'] or 0,
-        
-        'shipping_revenue': Order.objects.filter(
-            order_date__range=[start_date, end_date],
-            status__in=['delivered', 'shipped', 'pending']
-        ).aggregate(total=Sum('shipping_cost'))['total'] or 0,
+        'product_sales': orders.aggregate(
+            total=Sum(F('total_amount') - F('shipping_cost'))
+        )['total'] or 0,
         
         'manual_revenue': Revenue.objects.filter(
             date__range=[start_date, end_date]
         ).aggregate(total=Sum('amount'))['total'] or 0
     }
+    
+    # Calculate total revenue (product sales + manual revenue only)
     total_revenue = sum(revenue_data.values())
+
+    # Calculate shipping and COD expense
+    shipping_expense = orders.aggregate(
+        total=Sum('shipping_cost')
+    )['total'] or 0
+    
+    cod_charges = orders.filter(payment_method__in=['cash', 'cash_on_delivery']).aggregate(
+        total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')
+    )['total'] or 0
 
     # Get comparison revenue data if comparison dates provided
     if compare_start_date and compare_end_date:
+        compare_orders = Order.objects.filter(
+            order_date__range=[compare_start_date, compare_end_date],
+            status__in=['delivered', 'shipped', 'pending']
+        )
+        
         revenue_data.update({
-            'product_sales_prev': Order.objects.filter(
-                order_date__range=[compare_start_date, compare_end_date],
-                status__in=['delivered', 'shipped', 'pending']
-            ).aggregate(total=Sum('total_amount'))['total'] or 0,
-            
-            'shipping_revenue_prev': Order.objects.filter(
-                order_date__range=[compare_start_date, compare_end_date],
-                status__in=['delivered', 'shipped', 'pending']
-            ).aggregate(total=Sum('shipping_cost'))['total'] or 0,
+            'product_sales_prev': compare_orders.aggregate(
+                total=Sum(F('total_amount') - F('shipping_cost'))
+            )['total'] or 0,
             
             'manual_revenue_prev': Revenue.objects.filter(
                 date__range=[compare_start_date, compare_end_date]
             ).aggregate(total=Sum('amount'))['total'] or 0
         })
+        
         total_revenue_prev = sum([
             revenue_data['product_sales_prev'],
-            revenue_data['shipping_revenue_prev'],
             revenue_data['manual_revenue_prev']
         ])
+
+        # Calculate previous shipping and COD expense
+        shipping_expense_prev = compare_orders.aggregate(
+            total=Sum('shipping_cost')
+        )['total'] or 0
+        
+        cod_expense_prev = compare_orders.filter(payment_method__in=['cash', 'cash_on_delivery']).aggregate(
+            total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')
+        )['total'] or 0
     else:
         total_revenue_prev = None
+        shipping_expense_prev = None
+        cod_expense_prev = None
 
     # Get expense data
     expense_data = {
@@ -948,10 +1079,9 @@ def financial_reports(request):
             total=Sum(F('quantity') * F('product__buying_price'))
         )['total'] or 0,
         
-        'shipping_expenses': Expense.objects.filter(
-            date__range=[start_date, end_date],
-            type='shipping'
-        ).aggregate(total=Sum('amount'))['total'] or 0,
+        'shipping_expenses': shipping_expense,
+        
+        'cod_charges': cod_charges,
         
         'marketing_expenses': Expense.objects.filter(
             date__range=[start_date, end_date],
@@ -995,10 +1125,9 @@ def financial_reports(request):
                 total=Sum(F('quantity') * F('product__buying_price'))
             )['total'] or 0,
             
-            'shipping_expenses': Expense.objects.filter(
-                date__range=[compare_start_date, compare_end_date],
-                type='shipping'
-            ).aggregate(total=Sum('amount'))['total'] or 0,
+            'shipping_expenses': shipping_expense_prev,
+            
+            'cod_charges': cod_expense_prev,
             
             'marketing_expenses': Expense.objects.filter(
                 date__range=[compare_start_date, compare_end_date],
@@ -1123,6 +1252,7 @@ def financial_reports(request):
         total_liabilities_prev = None
         total_equity_prev = None
 
+    # Prepare context for template
     context = {
         'start_date': start_date,
         'end_date': end_date,
@@ -1145,6 +1275,8 @@ def financial_reports(request):
         'total_liabilities_prev': total_liabilities_prev,
         'total_equity': total_equity,
         'total_equity_prev': total_equity_prev,
+        'shipping_expense': shipping_expense,
+        'cod_expense': cod_charges,
     }
     
     return render(request, 'accounts/financial_reports.html', context)
@@ -1245,7 +1377,7 @@ def record_receivable_payment(request, receivable_id):
 def edit_expense(request, expense_id):
     expense = get_object_or_404(Expense, id=expense_id)
     if request.method == 'POST':
-        form = ExpenseForm(request.POST, instance=expense)
+        form = ExpenseForm(request.POST, request.FILES, instance=expense)
         if form.is_valid():
             form.save()
             messages.success(request, 'Expense updated successfully.')
@@ -1286,3 +1418,20 @@ def record_expense_payment(request, expense_id):
         messages.success(request, 'Payment recorded successfully.')
         return redirect('accounts:expenses')
     return redirect('accounts:expenses')
+
+@user_passes_test(is_superuser)
+def debug_payment_methods(request):
+    """Debug view to analyze payment methods in orders"""
+    from order.models import Order
+    
+    # Print payment methods to console
+    payment_methods = Order.print_payment_methods()
+    
+    # Return as JSON response
+    return JsonResponse({
+        'status': 'success',
+        'data': {
+            'payment_methods': payment_methods,
+            'message': 'Check console for detailed information'
+        }
+    })

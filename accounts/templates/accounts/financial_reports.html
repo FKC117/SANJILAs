@@ -222,18 +222,6 @@
                             </td>
                         </tr>
                         <tr>
-                            <td>Shipping Revenue</td>
-                            <td class="text-end">BDT {{ revenue_data.shipping_revenue|floatformat:2|intcomma }}</td>
-                            <td class="text-end">
-                                {% if revenue_data.shipping_revenue_prev %}
-                                <span class="comparison-badge {% if revenue_data.shipping_revenue > revenue_data.shipping_revenue_prev %}positive{% else %}negative{% endif %}">
-                                    {% if revenue_data.shipping_revenue > revenue_data.shipping_revenue_prev %}↑{% else %}↓{% endif %}
-                                    {{ revenue_data.shipping_revenue|subtract:revenue_data.shipping_revenue_prev|floatformat:2|intcomma }}
-                                </span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
                             <td>Other Revenue</td>
                             <td class="text-end">BDT {{ revenue_data.manual_revenue|floatformat:2|intcomma }}</td>
                             <td class="text-end">
@@ -261,24 +249,66 @@
                         <tr>
                             <th colspan="3">Expenses</th>
                         </tr>
-                        {% for expense_name, expense_amount in expense_data.items %}
                         <tr>
-                            <td>{{ expense_name|title }}</td>
-                            <td class="text-end">BDT {{ expense_amount|floatformat:2|intcomma }}</td>
+                            <td>Cost of Goods</td>
+                            <td class="text-end">BDT {{ expense_data.cost_of_goods|floatformat:2|intcomma }}</td>
                             <td class="text-end">
-                                {% if expense_data_prev %}
-                                    {% with prev_amount=expense_data_prev|get_item:expense_name %}
-                                        {% if prev_amount %}
-                                        <span class="comparison-badge {% if expense_amount < prev_amount %}positive{% else %}negative{% endif %}">
-                                            {% if expense_amount < prev_amount %}↓{% else %}↑{% endif %}
-                                            {{ expense_amount|subtract:prev_amount|floatformat:2|intcomma }}
-                                        </span>
-                                        {% endif %}
-                                    {% endwith %}
+                                {% if expense_data_prev.cost_of_goods %}
+                                <span class="comparison-badge {% if expense_data.cost_of_goods < expense_data_prev.cost_of_goods %}positive{% else %}negative{% endif %}">
+                                    {% if expense_data.cost_of_goods < expense_data_prev.cost_of_goods %}↓{% else %}↑{% endif %}
+                                    {{ expense_data.cost_of_goods|subtract:expense_data_prev.cost_of_goods|abs|floatformat:2|intcomma }}
+                                </span>
                                 {% endif %}
                             </td>
                         </tr>
-                        {% endfor %}
+                        <tr>
+                            <td>Shipping Expenses</td>
+                            <td class="text-end">BDT {{ expense_data.shipping_expenses|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                {% if expense_data_prev.shipping_expenses %}
+                                <span class="comparison-badge {% if expense_data.shipping_expenses < expense_data_prev.shipping_expenses %}positive{% else %}negative{% endif %}">
+                                    {% if expense_data.shipping_expenses < expense_data_prev.shipping_expenses %}↓{% else %}↑{% endif %}
+                                    {{ expense_data.shipping_expenses|subtract:expense_data_prev.shipping_expenses|abs|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>COD Charges (0.50%)</td>
+                            <td class="text-end">BDT {{ expense_data.cod_charges|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                {% if expense_data_prev.cod_charges %}
+                                <span class="comparison-badge {% if expense_data.cod_charges < expense_data_prev.cod_charges %}positive{% else %}negative{% endif %}">
+                                    {% if expense_data.cod_charges < expense_data_prev.cod_charges %}↓{% else %}↑{% endif %}
+                                    {{ expense_data.cod_charges|subtract:expense_data_prev.cod_charges|abs|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Payroll Expenses</td>
+                            <td class="text-end">BDT {{ expense_data.salary|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                {% if expense_data_prev.salary %}
+                                <span class="comparison-badge {% if expense_data.salary < expense_data_prev.salary %}positive{% else %}negative{% endif %}">
+                                    {% if expense_data.salary < expense_data_prev.salary %}↓{% else %}↑{% endif %}
+                                    {{ expense_data.salary|subtract:expense_data_prev.salary|abs|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Marketing Expenses</td>
+                            <td class="text-end">BDT {{ expense_data.advertisement|floatformat:2|intcomma }}</td>
+                            <td class="text-end">
+                                {% if expense_data_prev.advertisement %}
+                                <span class="comparison-badge {% if expense_data.advertisement < expense_data_prev.advertisement %}positive{% else %}negative{% endif %}">
+                                    {% if expense_data.advertisement < expense_data_prev.advertisement %}↓{% else %}↑{% endif %}
+                                    {{ expense_data.advertisement|subtract:expense_data_prev.advertisement|abs|floatformat:2|intcomma }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
                         <tr class="table-primary">
                             <th>Total Expenses</th>
                             <th class="text-end">BDT {{ total_expenses|floatformat:2|intcomma }}</th>

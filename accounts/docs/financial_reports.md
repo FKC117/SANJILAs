@@ -12,18 +12,19 @@ The Financial Reports module provides comprehensive financial reporting capabili
 
 ### 2. Profit & Loss Statement
 - Revenue breakdown:
-  - Product Sales
-  - Shipping Revenue
-  - Other Revenue
+  - Product Sales (including shipping costs)
+  - Other Revenue (manual entries)
 - Expense breakdown:
   - Cost of Goods
-  - Shipping Expenses
+  - Shipping Costs (actual shipping costs from orders)
+  - COD Charges (0.5% of product selling price for COD orders)
   - Marketing Expenses
   - Payroll Expenses
   - Rent Expenses
   - Utilities
   - Website Expenses
   - Payment Processing
+  - Other Expenses
 - Profit metrics:
   - Gross Profit
   - Net Profit

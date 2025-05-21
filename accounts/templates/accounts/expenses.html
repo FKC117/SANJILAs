@@ -122,8 +122,8 @@
                         {{ form.amount }}
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="{{ form.account.id_for_label }}" class="form-label">Account</label>
-                        {{ form.account }}
+                        <label for="{{ form.receipt.id_for_label }}" class="form-label">Receipt</label>
+                        {{ form.receipt }}
                     </div>
                 </div>
                 <div class="mb-3">
@@ -200,6 +200,10 @@
                                                         <option value="SALARY" {% if expense.type == 'SALARY' %}selected{% endif %}>Salary</option>
                                                         <option value="RENT" {% if expense.type == 'RENT' %}selected{% endif %}>Rent</option>
                                                         <option value="UTILITIES" {% if expense.type == 'UTILITIES' %}selected{% endif %}>Utilities</option>
+                                                        <option value="SHIPPING" {% if expense.type == 'SHIPPING' %}selected{% endif %}>Shipping</option>
+                                                        <option value="COD" {% if expense.type == 'COD' %}selected{% endif %}>COD Charges (0.50%)</option>
+                                                        <option value="MARKETING" {% if expense.type == 'MARKETING' %}selected{% endif %}>Marketing</option>
+                                                        <option value="WEBSITE" {% if expense.type == 'WEBSITE' %}selected{% endif %}>Website</option>
                                                         <option value="OTHER" {% if expense.type == 'OTHER' %}selected{% endif %}>Other</option>
                                                     </select>
                                                 </div>

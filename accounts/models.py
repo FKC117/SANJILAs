@@ -388,38 +388,29 @@ class Payable(models.Model):
         return self.amount - self.paid_amount
 
 class Expense(models.Model):
-    """Expense tracking"""
+    """Model for tracking expenses"""
     EXPENSE_TYPES = [
-        ('operational', 'Operational'),
-        ('salary', 'Salary'),
-        ('rent', 'Rent'),
-        ('utilities', 'Utilities'),
-        ('other', 'Other'),
+        ('OPERATIONAL', 'Operational'),
+        ('SALARY', 'Salary'),
+        ('RENT', 'Rent'),
+        ('UTILITIES', 'Utilities'),
+        ('SHIPPING', 'Shipping'),
+        ('COD', 'COD Charges'),
+        ('MARKETING', 'Marketing'),
+        ('WEBSITE', 'Website'),
+        ('OTHER', 'Other'),
     ]
-
-    EXPENSE_CATEGORIES = [
-        ('fixed', 'Fixed'),
-        ('variable', 'Variable'),
-    ]
-
-    type = models.CharField(max_length=20, choices=EXPENSE_TYPES)
+    
     date = models.DateField()
+    description = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.TextField()
-    category = models.CharField(max_length=20, choices=EXPENSE_CATEGORIES, default='variable')
-    is_paid = models.BooleanField(default=False)
-    account = models.ForeignKey(Account, on_delete=models.CASCADE)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    type = models.CharField(max_length=20, choices=EXPENSE_TYPES, default='OPERATIONAL')
+    receipt = models.FileField(upload_to='expenses/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-date', '-created_at']
-        verbose_name = 'Expense'
-        verbose_name_plural = 'Expenses'
-
+    
     def __str__(self):
-        return f"{self.get_type_display()} - {self.amount} BDT"
+        return f"{self.description} - {self.amount}"
 
 class Revenue(models.Model):
     """Revenue tracking"""

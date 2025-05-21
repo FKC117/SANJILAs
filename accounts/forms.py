@@ -53,13 +53,13 @@ class PayableForm(forms.ModelForm):
 class ExpenseForm(forms.ModelForm):
     class Meta:
         model = Expense
-        fields = ['date', 'type', 'amount', 'description', 'account']
+        fields = ['date', 'type', 'amount', 'description', 'receipt']
         widgets = {
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
             'type': forms.Select(attrs={'class': 'form-control'}),
             'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'description': forms.TextInput(attrs={'class': 'form-control'}),
-            'account': forms.Select(attrs={'class': 'form-control'}),
+            'receipt': forms.FileInput(attrs={'class': 'form-control'}),
         }
 
 class RevenueForm(forms.ModelForm):

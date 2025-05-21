@@ -142,8 +142,20 @@
                     <h5 class="card-title">Total Revenue</h5>
                     <h3 class="card-text">BDT {{ total_revenue|floatformat:2|intcomma }}</h3>
                     <div class="small mt-2">
-                        <div>Orders: BDT {{ order_revenue|floatformat:2|intcomma }}</div>
-                        <div>Manual: BDT {{ manual_revenue|floatformat:2|intcomma }}</div>
+                        <div>Product Sales: BDT {{ product_revenue|floatformat:2|intcomma }}</div>
+                        <div>Other Revenue: BDT {{ manual_revenue|floatformat:2|intcomma }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Total Expenses</h5>
+                    <h3 class="card-text">BDT {{ total_expenses|floatformat:2|intcomma }}</h3>
+                    <div class="small mt-2">
+                        <div>Shipping: BDT {{ shipping_expense|floatformat:2|intcomma }}</div>
+                        <div>COD Charges: BDT {{ cod_expense|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
             </div>
@@ -153,6 +165,10 @@
                 <div class="card-body">
                     <h5 class="card-title">Net Profit</h5>
                     <h3 class="card-text">BDT {{ net_profit|floatformat:2|intcomma }}</h3>
+                    <div class="small mt-2">
+                        <div>Total Revenue: BDT {{ total_revenue|floatformat:2|intcomma }}</div>
+                        <div>Total Expenses: BDT {{ total_expenses|floatformat:2|intcomma }}</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -319,7 +335,21 @@
     new Chart(expenseCtx, {
         type: 'doughnut',
         data: {
-            labels: [{% for item in expense_breakdown %}'{{ item.type }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+            labels: [
+                {% for item in expense_breakdown %}
+                    {% if item.type == 'shipping' %}
+                        'Shipping Costs'
+                    {% elif item.type == 'cod_charges' %}
+                        'COD Charges (0.5%)'
+                    {% elif item.type == 'salary' %}
+                        'Payroll Expenses'
+                    {% elif item.type == 'advertisement' %}
+                        'Marketing Expenses'
+                    {% else %}
+                        '{{ item.type|title }}'
+                    {% endif %}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            ],
             datasets: [{
                 data: [{% for item in expense_breakdown %}{{ item.total }}{% if not forloop.last %}, {% endif %}{% endfor %}],
                 backgroundColor: [
@@ -327,7 +357,9 @@
                     'rgb(54, 162, 235)',
                     'rgb(255, 205, 86)',
                     'rgb(75, 192, 192)',
-                    'rgb(153, 102, 255)'
+                    'rgb(153, 102, 255)',
+                    'rgb(255, 159, 64)',
+                    'rgb(199, 199, 199)'
                 ]
             }]
         },
