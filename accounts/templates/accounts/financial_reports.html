@@ -285,30 +285,28 @@
                                 {% endif %}
                             </td>
                         </tr>
-                        <tr>
-                            <td>Payroll Expenses</td>
-                            <td class="text-end">BDT {{ expense_data.salary|floatformat:2|intcomma }}</td>
-                            <td class="text-end">
-                                {% if expense_data_prev.salary %}
-                                <span class="comparison-badge {% if expense_data.salary < expense_data_prev.salary %}positive{% else %}negative{% endif %}">
-                                    {% if expense_data.salary < expense_data_prev.salary %}↓{% else %}↑{% endif %}
-                                    {{ expense_data.salary|subtract:expense_data_prev.salary|abs|floatformat:2|intcomma }}
-                                </span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>Marketing Expenses</td>
-                            <td class="text-end">BDT {{ expense_data.advertisement|floatformat:2|intcomma }}</td>
-                            <td class="text-end">
-                                {% if expense_data_prev.advertisement %}
-                                <span class="comparison-badge {% if expense_data.advertisement < expense_data_prev.advertisement %}positive{% else %}negative{% endif %}">
-                                    {% if expense_data.advertisement < expense_data_prev.advertisement %}↓{% else %}↑{% endif %}
-                                    {{ expense_data.advertisement|subtract:expense_data_prev.advertisement|abs|floatformat:2|intcomma }}
-                                </span>
-                                {% endif %}
-                            </td>
-                        </tr>
+                        {% comment %} Dynamically display all expense categories {% endcomment %}
+                        {% for key, value in expense_data.items %}
+                            {% if key != 'cost_of_goods' and key != 'shipping_expenses' and key != 'cod_charges' %}
+                            <tr>
+                                <td>{{ key|format_expense_name }}</td>
+                                <td class="text-end">BDT {{ value|floatformat:2|intcomma }}</td>
+                                <td class="text-end">
+                                    {% if expense_data_prev %}
+                                        {% with prev_value=expense_data_prev|get_item:key %}
+                                            {% if prev_value %}
+                                            <span class="comparison-badge {% if value < prev_value %}positive{% else %}negative{% endif %}">
+                                                {% if value < prev_value %}↓{% else %}↑{% endif %}
+                                                {{ value|subtract:prev_value|abs|floatformat:2|intcomma }}
+                                            </span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+<!-- Dynamic expense categories are handled by the for loop above -->
                         <tr class="table-primary">
                             <th>Total Expenses</th>
                             <th class="text-end">BDT {{ total_expenses|floatformat:2|intcomma }}</th>
@@ -371,7 +369,7 @@
                                 <td class="text-end">
                                     {% if balance_sheet_prev and balance_sheet_prev.assets %}
                                         {% with prev_amount=balance_sheet_prev.assets|get_item:asset_name %}
-                                            {% if prev_amount %}
+                                            {% if prev_amount is not None %}
                                             <span class="comparison-badge {% if asset_amount > prev_amount %}positive{% else %}negative{% endif %}">
                                                 {% if asset_amount > prev_amount %}↑{% else %}↓{% endif %}
                                                 {{ asset_amount|subtract:prev_amount|floatformat:2|intcomma }}
@@ -406,11 +404,15 @@
                                 <td>{{ liability_name|title }}</td>
                                 <td class="text-end">BDT {{ liability_amount|floatformat:2|intcomma }}</td>
                                 <td class="text-end">
-                                    {% if balance_sheet_prev.liabilities|get_item:liability_name %}
-                                    <span class="comparison-badge {% if liability_amount < balance_sheet_prev.liabilities|get_item:liability_name %}positive{% else %}negative{% endif %}">
-                                        {% if liability_amount < balance_sheet_prev.liabilities|get_item:liability_name %}↓{% else %}↑{% endif %}
-                                        {{ liability_amount|subtract:balance_sheet_prev.liabilities|get_item:liability_name|floatformat:2|intcomma }}
-                                    </span>
+                                    {% if balance_sheet_prev and balance_sheet_prev.liabilities %}
+                                        {% with prev_amount=balance_sheet_prev.liabilities|get_item:liability_name %}
+                                            {% if prev_amount is not None %}
+                                            <span class="comparison-badge {% if liability_amount < prev_amount %}positive{% else %}negative{% endif %}">
+                                                {% if liability_amount < prev_amount %}↓{% else %}↑{% endif %}
+                                                {{ liability_amount|subtract:prev_amount|floatformat:2|intcomma }}
+                                            </span>
+                                            {% endif %}
+                                        {% endwith %}
                                     {% endif %}
                                 </td>
                             </tr>
@@ -432,11 +434,15 @@
                                 <td>{{ equity_name|title }}</td>
                                 <td class="text-end">BDT {{ equity_amount|floatformat:2|intcomma }}</td>
                                 <td class="text-end">
-                                    {% if balance_sheet_prev.equity|get_item:equity_name %}
-                                    <span class="comparison-badge {% if equity_amount > balance_sheet_prev.equity|get_item:equity_name %}positive{% else %}negative{% endif %}">
-                                        {% if equity_amount > balance_sheet_prev.equity|get_item:equity_name %}↑{% else %}↓{% endif %}
-                                        {{ equity_amount|subtract:balance_sheet_prev.equity|get_item:equity_name|floatformat:2|intcomma }}
-                                    </span>
+                                    {% if balance_sheet_prev and balance_sheet_prev.equity %}
+                                        {% with prev_amount=balance_sheet_prev.equity|get_item:equity_name %}
+                                            {% if prev_amount is not None %}
+                                            <span class="comparison-badge {% if equity_amount > prev_amount %}positive{% else %}negative{% endif %}">
+                                                {% if equity_amount > prev_amount %}↑{% else %}↓{% endif %}
+                                                {{ equity_amount|subtract:prev_amount|floatformat:2|intcomma }}
+                                            </span>
+                                            {% endif %}
+                                        {% endwith %}
                                     {% endif %}
                                 </td>
                             </tr>

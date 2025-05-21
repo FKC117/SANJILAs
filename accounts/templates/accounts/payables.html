@@ -114,6 +114,13 @@
                         {{ form.status }}
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="{{ form.expense_category.id_for_label }}" class="form-label">Expense Category</label>
+                        {{ form.expense_category }}
+                        <small class="form-text text-muted">Select the category of expense this payable represents</small>
+                    </div>
+                </div>
                 <div class="mb-3">
                     <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
                     {{ form.notes }}
@@ -203,8 +210,16 @@
                                                         <input type="number" step="0.01" class="form-control" name="amount" value="{{ payable.amount }}" required>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">Description</label>
-                                                        <textarea class="form-control" name="description" rows="3">{{ payable.description }}</textarea>
+                                                        <label class="form-label">Expense Category</label>
+                                                        <select class="form-select" name="expense_category" required>
+                                                            {% for category in expense_categories %}
+                                                                <option value="{{ category.id }}" {% if payable.expense_category_id == category.id %}selected{% endif %}>{{ category.name }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Notes</label>
+                                                        <textarea class="form-control" name="notes" rows="3">{{ payable.notes }}</textarea>
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">
@@ -227,20 +242,29 @@
                                             <form method="post" action="{% url 'accounts:record_payable_payment' payable.id %}">
                                                 {% csrf_token %}
                                                 <div class="modal-body">
+                                                    <div class="alert alert-info">
+                                                        <strong>Payment Information</strong><br>
+                                                        Supplier: {{ payable.supplier.name }}<br>
+                                                        Invoice: {{ payable.invoice_number }}<br>
+                                                        Expense Type: {{ payable.get_expense_type_display }}<br>
+                                                        Balance Due: BDT {{ payable.balance|floatformat:2 }}
+                                                    </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Payment Date</label>
                                                         <input type="date" class="form-control" name="payment_date" required>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">Amount</label>
+                                                        <label class="form-label">Payment Amount</label>
                                                         <input type="number" step="0.01" class="form-control" name="amount" max="{{ payable.balance }}" required>
                                                     </div>
                                                     <div class="mb-3">
                                                         <label class="form-label">Payment Method</label>
                                                         <select class="form-select" name="payment_method" required>
                                                             <option value="cash">Cash</option>
-                                                            <option value="bank">Bank Transfer</option>
+                                                            <option value="bank_transfer">Bank Transfer</option>
                                                             <option value="check">Check</option>
+                                                            <option value="credit_card">Credit Card</option>
+                                                            <option value="other">Other</option>
                                                         </select>
                                                     </div>
                                                     <div class="mb-3">

@@ -144,10 +144,10 @@
                         <h5 class="card-title m-0">Total Revenue</h5>
                         <i class="fas fa-chart-line fa-lg"></i>
                     </div>
-                    <h2 class="mb-2">৳{{ total_revenue|floatformat:2|intcomma }}</h2>
+                    <h2 class="mb-2">৳ {{ total_revenue|floatformat:2|intcomma }}</h2>
                     <div class="small mt-2">
-                        <div><i class="fas fa-shopping-cart me-1"></i> Product: ৳{{ product_revenue|floatformat:2|intcomma }}</div>
-                        <div><i class="fas fa-plus-circle me-1"></i> Other: ৳{{ manual_revenue|floatformat:2|intcomma }}</div>
+                        <div><i class="fas fa-shopping-cart me-1"></i> Product: ৳ {{ product_revenue|floatformat:2|intcomma }}</div>
+                        <div><i class="fas fa-plus-circle me-1"></i> Other: ৳ {{ manual_revenue|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
             </div>
@@ -161,7 +161,7 @@
                         <h5 class="card-title m-0">Product Cost</h5>
                         <i class="fas fa-box fa-lg"></i>
                     </div>
-                    <h2 class="mb-2">৳{{ product_cost|floatformat:2|intcomma }}</h2>
+                    <h2 class="mb-2">৳ {{ product_cost|floatformat:2|intcomma }}</h2>
                     <div class="small mt-2">
                         <div><i class="fas fa-tags me-1"></i> Cost of Goods Sold</div>
                     </div>
@@ -177,7 +177,7 @@
                         <h5 class="card-title m-0">Gross Profit</h5>
                         <i class="fas fa-calculator fa-lg"></i>
                     </div>
-                    <h2 class="mb-2">৳{{ gross_profit|floatformat:2|intcomma }}</h2>
+                    <h2 class="mb-2">৳ {{ gross_profit|floatformat:2|intcomma }}</h2>
                     <div class="small mt-2">
                         <div><i class="fas fa-percentage me-1"></i> Revenue - COGS</div>
                     </div>
@@ -193,10 +193,10 @@
                         <h5 class="card-title m-0">Total Expenses</h5>
                         <i class="fas fa-receipt fa-lg"></i>
                     </div>
-                    <h2 class="mb-2">৳{{ total_expenses|floatformat:2|intcomma }}</h2>
+                    <h2 class="mb-2">৳ {{ total_expenses|floatformat:2|intcomma }}</h2>
                     <div class="small mt-2">
-                        <div><i class="fas fa-shipping-fast me-1"></i> Shipping: ৳{{ shipping_expense|floatformat:2|intcomma }}</div>
-                        <div><i class="fas fa-money-bill-wave me-1"></i> COD: ৳{{ cod_expense|floatformat:2|intcomma }}</div>
+                        <div><i class="fas fa-shipping-fast me-1"></i> Shipping: ৳ {{ shipping_expense|floatformat:2|intcomma }}</div>
+                        <div><i class="fas fa-money-bill-wave me-1"></i> COD: ৳ {{ cod_expense|floatformat:2|intcomma }}</div>
                     </div>
                 </div>
             </div>
@@ -210,7 +210,7 @@
                         <h5 class="card-title m-0">Total Payables</h5>
                         <i class="fas fa-file-invoice-dollar fa-lg"></i>
                     </div>
-                    <h2 class="mb-2">৳{{ total_payables|floatformat:2|intcomma }}</h2>
+                    <h2 class="mb-2">৳ {{ total_payables|floatformat:2|intcomma }}</h2>
                     <div class="small mt-2">
                         <div><i class="fas fa-calendar-alt me-1"></i> Outstanding Bills</div>
                     </div>
@@ -226,7 +226,7 @@
                         <h5 class="card-title m-0">Total Receivables</h5>
                         <i class="fas fa-hand-holding-usd fa-lg"></i>
                     </div>
-                    <h2 class="mb-2">৳{{ total_receivables|floatformat:2|intcomma }}</h2>
+                    <h2 class="mb-2">৳ {{ total_receivables|floatformat:2|intcomma }}</h2>
                     <div class="small mt-2">
                         <div><i class="fas fa-calendar-alt me-1"></i> Outstanding Invoices</div>
                     </div>
@@ -242,7 +242,7 @@
                         <h5 class="card-title m-0">Net Profit</h5>
                         <i class="fas fa-chart-pie fa-lg"></i>
                     </div>
-                    <h2 class="mb-2">৳{{ net_profit|floatformat:2|intcomma }}</h2>
+                    <h2 class="mb-2">৳ {{ net_profit|floatformat:2|intcomma }}</h2>
                     <div class="small mt-2">
                         <div><i class="fas fa-equals me-1"></i> Gross Profit - Expenses</div>
                     </div>
@@ -350,7 +350,7 @@
                         <a href="{% url 'accounts:payables' %}" class="list-group-item list-group-item-action">
                             <div class="d-flex w-100 justify-content-between">
                                 <h6 class="mb-1">{{ payable.supplier.name }}</h6>
-                                <small>${{ payable.balance|floatformat:2|intcomma }}</small>
+                                <small>৳ {{ payable.balance|floatformat:2|intcomma }}</small>
                             </div>
                             <small>Due: {{ payable.due_date|date:"M d, Y" }}</small>
                         </a>

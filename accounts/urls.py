@@ -19,6 +19,7 @@ urlpatterns = [
     path('expenses/', views.expenses, name='expenses'),
     path('expenses/<int:expense_id>/edit/', views.edit_expense, name='edit_expense'),
     path('expenses/<int:expense_id>/payment/', views.record_expense_payment, name='record_expense_payment'),
+    path('expense-categories/', views.expense_categories, name='expense_categories'),
     path('revenue/', views.revenue, name='revenue'),
     path('reports/', views.financial_reports, name='financial_reports'),
     path('debug/payment-methods/', views.debug_payment_methods, name='debug_payment_methods'),

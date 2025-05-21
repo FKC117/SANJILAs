@@ -1,26 +1,49 @@
 from django import template
 from django.template.defaultfilters import floatformat
 import math
+from decimal import Decimal
 
 register = template.Library()
 
 @register.filter
 def subtract(value, arg):
-    """Subtract the arg from the value."""
+    """Subtracts the arg from the value."""
     try:
-        return float(value) - float(arg)
+        return value - arg
     except (ValueError, TypeError):
-        return 0
+        try:
+            return Decimal(value) - Decimal(arg)
+        except:
+            return 0
 
 @register.filter
 def abs(value):
-    """Return the absolute value."""
+    """Returns absolute value."""
     try:
-        return math.fabs(float(value))
+        return abs(value)
     except (ValueError, TypeError):
         return 0
 
 @register.filter
 def get_item(dictionary, key):
-    """Get an item from a dictionary."""
-    return dictionary.get(key, 0) if dictionary else 0 
+    """Gets an item from a dictionary. Returns None if dictionary is None or key doesn't exist."""
+    if dictionary is None:
+        return None
+    return dictionary.get(key, None)
+
+@register.filter
+def replace(value, arg):
+    """Replaces all occurrences of arg[0] with arg[1] in the given string."""
+    if isinstance(value, str):
+        return value.replace("_", " ")
+    return value
+
+@register.filter
+def format_expense_name(value):
+    """Formats expense name by replacing underscores with spaces and title casing."""
+    try:
+        return value.replace('_', ' ').title()
+    except (ValueError, TypeError):
+        return value 
+
+fields = ['name', 'code', 'type', 'category', 'expense_category', 'description'] 

@@ -285,9 +285,6 @@ class Account(models.Model):
     code = models.CharField(max_length=20, unique=True)
     type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
     category = models.ForeignKey(AccountCategory, on_delete=models.CASCADE, related_name='accounts', null=True, blank=True)
-    expense_category = models.ForeignKey(ExpenseCategory, on_delete=models.SET_NULL, null=True, blank=True,
-                                       related_name='accounts', verbose_name='Expense Category',
-                                       help_text='The expense category this account is linked to (for expense accounts only)')
     description = models.TextField(blank=True)
     balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)

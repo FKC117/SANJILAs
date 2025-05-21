@@ -5,6 +5,7 @@
 {% block title %}Chart of Accounts{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
     .dashboard-header {
         background: #2c3e50;
@@ -87,6 +88,10 @@
     .account-balance.negative {
         color: #dc3545;
     }
+    .account-details {
+        font-size: 0.9rem;
+        color: #6c757d;
+    }
     .nav-buttons {
         position: fixed;
         bottom: 2rem;
@@ -116,6 +121,21 @@
     .documentation li {
         margin-bottom: 0.5rem;
     }
+    .date-filter {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .expense-category-badge {
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        background-color: #e9ecef;
+        color: #495057;
+        margin-left: 0.5rem;
+    }
 </style>
 {% endblock %}
 
@@ -134,144 +154,183 @@
 </div>
 
 <div class="container-fluid">
+    <!-- Date Filter -->
+    <div class="date-filter">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-2"></i>Apply Filter
+                </button>
+                <a href="{% url 'accounts:chart_of_accounts' %}" class="btn btn-outline-secondary ms-2">
+                    <i class="fas fa-sync me-2"></i>Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <!-- New Account Form -->
+            <div class="form-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Add New Account</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">Account Name</label>
+                                {{ form.name }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.code.id_for_label }}" class="form-label">Account Code</label>
+                                {{ form.code }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.type.id_for_label }}" class="form-label">Account Type</label>
+                                {{ form.type }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.category.id_for_label }}" class="form-label">Category</label>
+                                {{ form.category }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3 expense-category-field" style="display: none;">
+                                <label for="{{ form.expense_category.id_for_label }}" class="form-label">Expense Category</label>
+                                {{ form.expense_category }}
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                            {{ form.description }}
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Account
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <!-- New Category Form -->
+            <div class="form-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Add New Category</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="category">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ category_form.name.id_for_label }}" class="form-label">Category Name</label>
+                                {{ category_form.name }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ category_form.description.id_for_label }}" class="form-label">Description</label>
+                                {{ category_form.description }}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Category
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Documentation -->
+    <div class="documentation">
+        <h4>Chart of Accounts Documentation</h4>
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Account Categories</h5>
+                <ul>
+                    <li><strong>Assets:</strong> Resources owned by the business (Cash, Inventory, etc.)</li>
+                    <li><strong>Liabilities:</strong> Amounts owed to others (Accounts Payable, Loans, etc.)</li>
+                    <li><strong>Equity:</strong> Owner's interest in the business (Capital, Retained Earnings)</li>
+                    <li><strong>Revenue:</strong> Income from business activities (Sales, Service Revenue)</li>
+                    <li><strong>Expenses:</strong> Costs incurred in running the business (Rent, Utilities, etc.)</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h5>Features</h5>
+                <ul>
+                    <li>All amounts are displayed in BDT (Bangladesh Taka)</li>
+                    <li>Positive balances are shown in green, negative in red</li>
+                    <li>Each account shows its code, type, and current balance</li>
+                    <li>Accounts are organized by categories for easy navigation</li>
+                    <li>Add new accounts and categories using the forms above</li>
+                    <li>Filter by date range to view account balances for specific periods</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col-md-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">Chart of Accounts</h5>
+                    <small class="text-muted">Showing data from {{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</small>
                 </div>
                 <div class="card-body">
                     {% for category in account_categories %}
-                    <div class="mb-4">
-                        <h4>{{ category.name }}</h4>
-                        <p class="text-muted">{{ category.description }}</p>
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Code</th>
-                                        <th>Name</th>
-                                        <th>Type</th>
-                                        <th>Balance</th>
-                                        <th>Description</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for account in category.accounts.all %}
-                                    <tr>
-                                        <td>{{ account.code }}</td>
-                                        <td>{{ account.name }}</td>
-                                        <td>{{ account.type|title }}</td>
-                                        <td class="{% if account.balance < 0 %}text-danger{% else %}text-success{% endif %}">
-                                            BDT {{ account.balance|floatformat:2|intcomma }}
-                                        </td>
-                                        <td>{{ account.description }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
+                    <div class="account-category mb-4">
+                        <div class="account-category-header">
+                            <h4 class="mb-0">{{ category.name }}</h4>
+                            <small class="text-muted">{{ category.description }}</small>
+                        </div>
+                        <div class="account-category-body">
+                            {% for account in category.accounts.all %}
+                            <div class="account-item">
+                                <div class="account-item-header d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5 class="mb-0">{{ account.name }}</h5>
+                                        <small class="text-muted">Code: {{ account.code }}</small>
+                                        {% if account.type == 'expense' and account.expense_category %}
+                                            <span class="expense-category-badge">{{ account.expense_category.name }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="account-balance {% if account.balance >= 0 %}positive{% else %}negative{% endif %}">
+                                        ৳ {{ account.balance|floatformat:2|intcomma }}
+                                    </div>
+                                </div>
+                                <div class="account-item-body">
+                                    <div class="account-details">
+                                        <p class="mb-0">{{ account.description }}</p>
+                                        <small>Type: {{ account.type|title }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-3">
+                                <p class="text-muted mb-0">No accounts in this category</p>
+                            </div>
+                            {% endfor %}
                         </div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Documentation -->
-<div class="documentation">
-    <h4>Chart of Accounts Documentation</h4>
-    <div class="row">
-        <div class="col-md-6">
-            <h5>Account Categories</h5>
-            <ul>
-                <li><strong>Assets:</strong> Resources owned by the business (Cash, Inventory, etc.)</li>
-                <li><strong>Liabilities:</strong> Amounts owed to others (Accounts Payable, Loans, etc.)</li>
-                <li><strong>Equity:</strong> Owner's interest in the business (Capital, Retained Earnings)</li>
-                <li><strong>Revenue:</strong> Income from business activities (Sales, Service Revenue)</li>
-                <li><strong>Expenses:</strong> Costs incurred in running the business (Rent, Utilities, etc.)</li>
-            </ul>
-        </div>
-        <div class="col-md-6">
-            <h5>Features</h5>
-            <ul>
-                <li>All amounts are displayed in BDT (Bangladesh Taka)</li>
-                <li>Positive balances are shown in green, negative in red</li>
-                <li>Each account shows its code, type, and current balance</li>
-                <li>Accounts are organized by categories for easy navigation</li>
-                <li>Add new accounts and categories using the forms above</li>
-            </ul>
-        </div>
-    </div>
-</div>
-
-<!-- New Account Form -->
-<div class="form-card">
-    <div class="card-header">
-        <h5 class="card-title mb-0">Add New Account</h5>
-    </div>
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.name.id_for_label }}" class="form-label">Account Name</label>
-                    {{ form.name }}
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.code.id_for_label }}" class="form-label">Account Code</label>
-                    {{ form.code }}
-                </div>
-            </div>
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.type.id_for_label }}" class="form-label">Account Type</label>
-                    {{ form.type }}
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="{{ form.category.id_for_label }}" class="form-label">Category</label>
-                    {{ form.category }}
-                </div>
-            </div>
-            <div class="mb-3">
-                <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
-                {{ form.description }}
-            </div>
-            <div class="text-end">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Save Account
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- New Category Form -->
-<div class="form-card">
-    <div class="card-header">
-        <h5 class="card-title mb-0">Add New Category</h5>
-    </div>
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="form_type" value="category">
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="{{ category_form.name.id_for_label }}" class="form-label">Category Name</label>
-                    {{ category_form.name }}
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="{{ category_form.description.id_for_label }}" class="form-label">Description</label>
-                    {{ category_form.description }}
-                </div>
-            </div>
-            <div class="text-end">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save me-2"></i>Save Category
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 
@@ -290,4 +349,31 @@
         <i class="fas fa-receipt"></i>
     </a>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    // Initialize date pickers
+    flatpickr("input[type=date]", {
+        dateFormat: "Y-m-d",
+        allowInput: true
+    });
+
+    // Function to toggle expense category field visibility
+    function toggleExpenseCategory() {
+        const accountType = document.querySelector('#{{ form.type.id_for_label }}').value;
+        const expenseCategoryField = document.querySelector('.expense-category-field');
+        if (accountType === 'expense') {
+            expenseCategoryField.style.display = 'block';
+        } else {
+            expenseCategoryField.style.display = 'none';
+        }
+    }
+
+    // Call on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleExpenseCategory();
+    });
+</script>
 {% endblock %} 

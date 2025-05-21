@@ -6,7 +6,7 @@ from .models import (
     AdminActivity, SystemNotification, SystemSettings,
     FinancialTransaction, ProductAnalytics, DailySales, MonthlyReport,
     AccountCategory, Account, Transaction, JournalEntry, JournalEntryLine, Receivable, Payable, Expense, Revenue,
-    ProfitLossReport, BalanceSheetReport, Payment
+    ProfitLossReport, BalanceSheetReport, Payment, ExpenseCategory
 )
 
 @admin.register(AdminActivity)
@@ -83,3 +83,4 @@ admin.site.register(Revenue)
 admin.site.register(ProfitLossReport)
 admin.site.register(BalanceSheetReport)
 admin.site.register(Payment)
+admin.site.register(ExpenseCategory)

@@ -11,14 +11,14 @@ from .models import (
     Account, Transaction, JournalEntry, JournalEntryLine,
     Receivable, Payable, Expense, Revenue,
     ProfitLossReport, BalanceSheetReport, AccountCategory,
-    Payment
+    Payment, ExpenseCategory
 )
 from shop.models import Product
 from order.models import Order, OrderItem
 from django.contrib import messages
 from django.urls import reverse
 from decimal import Decimal
-from .forms import JournalEntryForm, ReceivableForm, PayableForm, ExpenseForm, RevenueForm, AccountForm, AccountCategoryForm
+from .forms import JournalEntryForm, ReceivableForm, PayableForm, ExpenseForm, RevenueForm, AccountForm, AccountCategoryForm, ExpenseCategoryForm
 
 def is_superuser(user):
     return user.is_superuser
@@ -753,6 +753,25 @@ def accounting_dashboard(request):
 
 @login_required
 def chart_of_accounts(request):
+    # Get date range from request
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    try:
+        if start_date and end_date:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        else:
+            # Default to current month
+            today = timezone.now().date()
+            start_date = today.replace(day=1)
+            end_date = today
+    except ValueError:
+        messages.error(request, "Invalid date format. Using current month.")
+        today = timezone.now().date()
+        start_date = today.replace(day=1)
+        end_date = today
+
     if request.method == 'POST':
         form_type = request.POST.get('form_type')
         
@@ -760,95 +779,36 @@ def chart_of_accounts(request):
             form = AccountCategoryForm(request.POST)
             if form.is_valid():
                 form.save()
+                messages.success(request, 'Category created successfully.')
                 return redirect('accounts:chart_of_accounts')
         else:
             form = AccountForm(request.POST)
             if form.is_valid():
-                form.save()
+                account = form.save(commit=False)
+                # Clear expense_category if not an expense account
+                if account.type != 'expense':
+                    account.expense_category = None
+                account.save()
+                messages.success(request, 'Account created successfully.')
                 return redirect('accounts:chart_of_accounts')
     else:
         form = AccountForm()
         category_form = AccountCategoryForm()
 
-    # Get or create default categories for e-commerce
-    default_categories = [
-        {
-            'name': 'Assets',
-            'description': 'Resources owned by the business',
-            'accounts': [
-                {'name': 'Cash', 'code': '1000', 'type': 'asset', 'description': 'Cash in bank and on hand'},
-                {'name': 'Accounts Receivable', 'code': '1100', 'type': 'asset', 'description': 'Amounts owed by customers'},
-                {'name': 'Inventory', 'code': '1200', 'type': 'asset', 'description': 'Products available for sale'},
-                {'name': 'Prepaid Expenses', 'code': '1300', 'type': 'asset', 'description': 'Expenses paid in advance'},
-            ]
-        },
-        {
-            'name': 'Liabilities',
-            'description': 'Amounts owed to others',
-            'accounts': [
-                {'name': 'Accounts Payable', 'code': '2000', 'type': 'liability', 'description': 'Amounts owed to suppliers'},
-                {'name': 'Sales Tax Payable', 'code': '2100', 'type': 'liability', 'description': 'Sales tax collected from customers'},
-                {'name': 'Wages Payable', 'code': '2200', 'type': 'liability', 'description': 'Wages owed to employees'},
-            ]
-        },
-        {
-            'name': 'Equity',
-            'description': 'Owner\'s interest in the business',
-            'accounts': [
-                {'name': 'Common Stock', 'code': '3000', 'type': 'equity', 'description': 'Owner\'s investment in the business'},
-                {'name': 'Retained Earnings', 'code': '3100', 'type': 'equity', 'description': 'Accumulated profits'},
-            ]
-        },
-        {
-            'name': 'Revenue',
-            'description': 'Income from business activities',
-            'accounts': [
-                {'name': 'Product Sales', 'code': '4000', 'type': 'revenue', 'description': 'Revenue from product sales'},
-                {'name': 'Shipping Revenue', 'code': '4100', 'type': 'revenue', 'description': 'Revenue from shipping charges'},
-                {'name': 'Service Revenue', 'code': '4200', 'type': 'revenue', 'description': 'Revenue from services'},
-            ]
-        },
-        {
-            'name': 'Expenses',
-            'description': 'Costs incurred in running the business',
-            'accounts': [
-                {'name': 'Cost of Goods Sold', 'code': '5000', 'type': 'expense', 'description': 'Cost of products sold'},
-                {'name': 'Shipping Expenses', 'code': '5100', 'type': 'expense', 'description': 'Cost of shipping products'},
-                {'name': 'Marketing Expenses', 'code': '5200', 'type': 'expense', 'description': 'Advertising and promotion costs'},
-                {'name': 'Payroll Expenses', 'code': '5300', 'type': 'expense', 'description': 'Employee wages and benefits'},
-                {'name': 'Rent Expense', 'code': '5400', 'type': 'expense', 'description': 'Office and warehouse rent'},
-                {'name': 'Utilities', 'code': '5500', 'type': 'expense', 'description': 'Electricity, water, and other utilities'},
-                {'name': 'Website Expenses', 'code': '5600', 'type': 'expense', 'description': 'Website hosting and maintenance'},
-                {'name': 'Payment Processing Fees', 'code': '5700', 'type': 'expense', 'description': 'Credit card and payment gateway fees'},
-            ]
-        }
-    ]
-
-    # Create default categories and accounts if they don't exist
-    for category_data in default_categories:
-        category, created = AccountCategory.objects.get_or_create(
-            name=category_data['name'],
-            defaults={'description': category_data['description']}
-        )
-        
-        if created:
-            for account_data in category_data['accounts']:
-                Account.objects.create(
-                    name=account_data['name'],
-                    code=account_data['code'],
-                    type=account_data['type'],
-                    description=account_data['description'],
-                    category=category
-                )
-
     # Get all categories with their accounts
     account_categories = AccountCategory.objects.prefetch_related('accounts').all()
 
+    # Get all expense categories for dynamic mapping
+    expense_categories = ExpenseCategory.objects.filter(is_active=True)
+    
     # Calculate actual balances for each account
     for category in account_categories:
         for account in category.accounts.all():
-            # Get transactions for this account
-            transactions = Transaction.objects.filter(account=account)
+            # Get transactions for this account within date range
+            transactions = Transaction.objects.filter(
+                account=account,
+                date__range=[start_date, end_date]
+            )
             
             # Calculate balance based on account type
             if account.type in ['asset', 'expense']:
@@ -860,44 +820,75 @@ def chart_of_accounts(request):
                 account.balance = transactions.filter(type='credit').aggregate(total=Sum('amount'))['total'] or 0
                 account.balance -= transactions.filter(type='debit').aggregate(total=Sum('amount'))['total'] or 0
 
-            # For specific accounts, get actual data
+            # For specific accounts, get actual data within date range
             if account.name == 'Accounts Receivable':
-                account.balance = Receivable.objects.filter(status__in=['PENDING', 'PARTIAL', 'OVERDUE']).aggregate(
+                account.balance = Receivable.objects.filter(
+                    date__range=[start_date, end_date],
+                    status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+                ).aggregate(
                     total=Sum('amount') - Sum('paid_amount')
                 )['total'] or 0
             elif account.name == 'Accounts Payable':
-                account.balance = Payable.objects.filter(status__in=['PENDING', 'PARTIAL', 'OVERDUE']).aggregate(
+                account.balance = Payable.objects.filter(
+                    date__range=[start_date, end_date],
+                    status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+                ).aggregate(
                     total=Sum('amount') - Sum('paid_amount')
                 )['total'] or 0
             elif account.name == 'Product Sales':
                 account.balance = Order.objects.filter(
+                    order_date__range=[start_date, end_date],
                     status__in=['delivered', 'shipped', 'pending']
                 ).aggregate(total=Sum('total_amount'))['total'] or 0
             elif account.name == 'Cost of Goods Sold':
                 account.balance = OrderItem.objects.filter(
+                    order__order_date__range=[start_date, end_date],
                     order__status__in=['delivered', 'shipped', 'pending']
                 ).aggregate(
                     total=Sum(F('quantity') * F('product__buying_price'))
                 )['total'] or 0
-            elif account.name == 'Shipping Expenses':
-                account.balance = Expense.objects.filter(type='shipping').aggregate(total=Sum('amount'))['total'] or 0
-            elif account.name == 'Marketing Expenses':
-                account.balance = Expense.objects.filter(type='marketing').aggregate(total=Sum('amount'))['total'] or 0
-            elif account.name == 'Payroll Expenses':
-                account.balance = Expense.objects.filter(type='salary').aggregate(total=Sum('amount'))['total'] or 0
-            elif account.name == 'Rent Expense':
-                account.balance = Expense.objects.filter(type='rent').aggregate(total=Sum('amount'))['total'] or 0
-            elif account.name == 'Utilities':
-                account.balance = Expense.objects.filter(type='utilities').aggregate(total=Sum('amount'))['total'] or 0
-            elif account.name == 'Website Expenses':
-                account.balance = Expense.objects.filter(type='website').aggregate(total=Sum('amount'))['total'] or 0
-            elif account.name == 'Payment Processing Fees':
-                account.balance = Expense.objects.filter(type='payment_processing').aggregate(total=Sum('amount'))['total'] or 0
+            elif account.type == 'expense':
+                if account.expense_category:
+                    # Get expenses for the linked category
+                    account.balance = Expense.objects.filter(
+                        expense_category=account.expense_category,
+                        date__range=[start_date, end_date]
+                    ).aggregate(total=Sum('amount'))['total'] or 0
+                    
+                    # Add payables for this category
+                    payables_balance = Payable.objects.filter(
+                        expense_category=account.expense_category,
+                        date__range=[start_date, end_date],
+                        status__in=['PENDING', 'PARTIAL', 'OVERDUE']
+                    ).aggregate(
+                        total=Sum('amount') - Sum('paid_amount')
+                    )['total'] or 0
+                    account.balance += payables_balance
+                    
+                    # Special handling for specific expense types
+                    if account.name == 'Shipping Expenses':
+                        shipping_expense = Order.objects.filter(
+                            order_date__range=[start_date, end_date],
+                            status__in=['delivered', 'shipped', 'pending']
+                        ).aggregate(total=Sum('shipping_cost'))['total'] or 0
+                        account.balance += shipping_expense
+                    elif account.name == 'COD Charges':
+                        cod_charges = Order.objects.filter(
+                            order_date__range=[start_date, end_date],
+                            status__in=['delivered', 'shipped', 'pending'],
+                            payment_method__in=['cash', 'cash_on_delivery']
+                        ).aggregate(
+                            total=Sum(F('total_amount') - F('shipping_cost')) * Decimal('0.005')
+                        )['total'] or 0
+                        account.balance += cod_charges
 
     return render(request, 'accounts/chart_of_accounts.html', {
         'form': form,
         'category_form': category_form,
         'account_categories': account_categories,
+        'expense_categories': expense_categories,
+        'start_date': start_date,
+        'end_date': end_date,
     })
 
 @user_passes_test(is_superuser)
@@ -971,9 +962,11 @@ def expenses(request):
         form = ExpenseForm()
     
     expenses = Expense.objects.order_by('-date', '-created_at')
+    expense_categories = ExpenseCategory.objects.filter(is_active=True)
     return render(request, 'accounts/expenses.html', {
         'form': form,
-        'expenses': expenses
+        'expenses': expenses,
+        'expense_categories': expense_categories
     })
 
 @user_passes_test(is_superuser)
@@ -1099,37 +1092,17 @@ def financial_reports(request):
         'shipping_expenses': shipping_expense,
         
         'cod_charges': cod_charges,
-        
-        'marketing_expenses': Expense.objects.filter(
-            date__range=[start_date, end_date],
-            type='marketing'
-        ).aggregate(total=Sum('amount'))['total'] or 0,
-        
-        'payroll_expenses': Expense.objects.filter(
-            date__range=[start_date, end_date],
-            type='salary'
-        ).aggregate(total=Sum('amount'))['total'] or 0,
-        
-        'rent_expenses': Expense.objects.filter(
-            date__range=[start_date, end_date],
-            type='rent'
-        ).aggregate(total=Sum('amount'))['total'] or 0,
-        
-        'utilities': Expense.objects.filter(
-            date__range=[start_date, end_date],
-            type='utilities'
-        ).aggregate(total=Sum('amount'))['total'] or 0,
-        
-        'website_expenses': Expense.objects.filter(
-            date__range=[start_date, end_date],
-            type='website'
-        ).aggregate(total=Sum('amount'))['total'] or 0,
-        
-        'payment_processing': Expense.objects.filter(
-            date__range=[start_date, end_date],
-            type='payment_processing'
-        ).aggregate(total=Sum('amount'))['total'] or 0
     }
+    
+    # Dynamically add expenses by category
+    expense_categories = ExpenseCategory.objects.filter(is_active=True)
+    for category in expense_categories:
+        key = f"{category.name.lower().replace(' ', '_')}_expenses"
+        expense_data[key] = Expense.objects.filter(
+            date__range=[start_date, end_date],
+            expense_category=category
+        ).aggregate(total=Sum('amount'))['total'] or 0
+    
     total_expenses = sum(expense_data.values())
 
     # Get comparison expense data if comparison dates provided
@@ -1145,37 +1118,16 @@ def financial_reports(request):
             'shipping_expenses': shipping_expense_prev,
             
             'cod_charges': cod_expense_prev,
-            
-            'marketing_expenses': Expense.objects.filter(
-                date__range=[compare_start_date, compare_end_date],
-                type='marketing'
-            ).aggregate(total=Sum('amount'))['total'] or 0,
-            
-            'payroll_expenses': Expense.objects.filter(
-                date__range=[compare_start_date, compare_end_date],
-                type='salary'
-            ).aggregate(total=Sum('amount'))['total'] or 0,
-            
-            'rent_expenses': Expense.objects.filter(
-                date__range=[compare_start_date, compare_end_date],
-                type='rent'
-            ).aggregate(total=Sum('amount'))['total'] or 0,
-            
-            'utilities': Expense.objects.filter(
-                date__range=[compare_start_date, compare_end_date],
-                type='utilities'
-            ).aggregate(total=Sum('amount'))['total'] or 0,
-            
-            'website_expenses': Expense.objects.filter(
-                date__range=[compare_start_date, compare_end_date],
-                type='website'
-            ).aggregate(total=Sum('amount'))['total'] or 0,
-            
-            'payment_processing': Expense.objects.filter(
-                date__range=[compare_start_date, compare_end_date],
-                type='payment_processing'
-            ).aggregate(total=Sum('amount'))['total'] or 0
         }
+        
+        # Dynamically add expenses by category
+        for category in expense_categories:
+            key = f"{category.name.lower().replace(' ', '_')}_expenses"
+            expense_data_prev[key] = Expense.objects.filter(
+                date__range=[compare_start_date, compare_end_date],
+                expense_category=category
+            ).aggregate(total=Sum('amount'))['total'] or 0
+        
         total_expenses_prev = sum(expense_data_prev.values())
     else:
         expense_data_prev = None
@@ -1401,7 +1353,12 @@ def edit_expense(request, expense_id):
             return redirect('accounts:expenses')
     else:
         form = ExpenseForm(instance=expense)
-    return render(request, 'accounts/expenses.html', {'form': form})
+    
+    expense_categories = ExpenseCategory.objects.filter(is_active=True)
+    return render(request, 'accounts/expenses.html', {
+        'form': form,
+        'expense_categories': expense_categories
+    })
 
 @login_required
 def record_expense_payment(request, expense_id):
@@ -1451,4 +1408,33 @@ def debug_payment_methods(request):
             'payment_methods': payment_methods,
             'message': 'Check console for detailed information'
         }
+    })
+
+@user_passes_test(is_superuser)
+def expense_categories(request):
+    """View for managing expense categories"""
+    if request.method == 'POST':
+        # Check if it's an edit operation
+        if 'id' in request.POST:
+            category = get_object_or_404(ExpenseCategory, id=request.POST.get('id'))
+            category.name = request.POST.get('name')
+            category.code = request.POST.get('code')
+            category.description = request.POST.get('description')
+            category.is_active = 'is_active' in request.POST
+            category.save()
+            messages.success(request, 'Expense category updated successfully.')
+        else:
+            form = ExpenseCategoryForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Expense category created successfully.')
+        return redirect('accounts:expense_categories')
+    else:
+        form = ExpenseCategoryForm()
+    
+    categories = ExpenseCategory.objects.all().order_by('code')
+    
+    return render(request, 'accounts/expense_categories.html', {
+        'form': form,
+        'categories': categories
     })
