@@ -170,7 +170,22 @@ class ContactAdmin(admin.ModelAdmin):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'email', 'phone', 'address', 'created_at')
-    search_fields = ('name', 'email', 'phone')
-    list_filter = ('created_at',)
-    ordering = ('-created_at',)
+    list_display = ('name', 'email', 'phone', 'shipping_address', 'city_name', 'total_orders', 'total_spent', 'last_order_date', 'created_at', 'updated_at')
+    search_fields = ('name', 'email', 'phone', 'shipping_address')
+    list_filter = ('created_at', 'shipping_location', 'city_name')
+    readonly_fields = ('total_orders', 'total_spent', 'last_order_date', 'created_at', 'updated_at')
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'phone', 'email')
+        }),
+        ('Address Information', {
+            'fields': ('shipping_address', 'city', 'zone', 'area', 'city_name', 'zone_name', 'area_name', 'shipping_location')
+        }),
+        ('Order Statistics', {
+            'fields': ('total_orders', 'total_spent', 'last_order_date')
+        }),
+        ('System Information', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )

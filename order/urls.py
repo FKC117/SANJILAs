@@ -11,7 +11,9 @@ urlpatterns = [
     path('checkout/', views.checkout_view, name='checkout'),
     path('order/success/', views.order_success_generic, name='order_success_generic'),
     path('order/success/<int:order_id>/', views.order_success, name='order_success'),
+    path('invoice/<int:order_id>/', views.view_invoice, name='view_invoice'),
 ]
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

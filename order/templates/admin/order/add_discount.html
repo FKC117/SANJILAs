@@ -1,0 +1,152 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .discount-summary {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    .discount-summary h3 {
+        margin-top: 0;
+        color: #666;
+    }
+    .discount-summary table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .discount-summary td {
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+    }
+    .discount-summary td:last-child {
+        text-align: right;
+        font-weight: bold;
+    }
+    .discount-preview {
+        margin-top: 20px;
+        padding: 15px;
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        border-radius: 4px;
+        display: none;
+    }
+    .discount-preview.show {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const discountType = document.querySelector('#id_discount_type');
+    const discountValue = document.querySelector('#id_discount_value');
+    const preview = document.querySelector('.discount-preview');
+    
+    function updatePreview() {
+        const type = discountType.value;
+        const value = parseFloat(discountValue.value) || 0;
+        const subtotal = {{ discount_summary.subtotal }};
+        let discountAmount = 0;
+        
+        if (type === 'percentage') {
+            discountAmount = (subtotal * value) / 100;
+        } else {
+            discountAmount = value;
+        }
+        
+        const finalAmount = subtotal - discountAmount + {{ discount_summary.shipping_cost }};
+        
+        preview.innerHTML = `
+            <h4>Discount Preview</h4>
+            <table>
+                <tr>
+                    <td>Subtotal:</td>
+                    <td>৳${subtotal.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Discount (${type === 'percentage' ? value + '%' : '৳' + value.toFixed(2)}):</td>
+                    <td>-৳${discountAmount.toFixed(2)}</td>
+                </tr>
+                <tr>
+                    <td>Shipping:</td>
+                    <td>৳{{ discount_summary.shipping_cost }}</td>
+                </tr>
+                <tr>
+                    <td><strong>Final Amount:</strong></td>
+                    <td><strong>৳${finalAmount.toFixed(2)}</strong></td>
+                </tr>
+            </table>
+        `;
+        
+        preview.classList.add('show');
+    }
+    
+    discountType.addEventListener('change', updatePreview);
+    discountValue.addEventListener('input', updatePreview);
+    
+    // Initial preview
+    updatePreview();
+});
+</script>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="discount-summary">
+        <h3>Current Order Summary</h3>
+        <table>
+            <tr>
+                <td>Subtotal:</td>
+                <td>৳{{ discount_summary.subtotal }}</td>
+            </tr>
+            <tr>
+                <td>Current Discount:</td>
+                <td>
+                    {% if discount_summary.discount_percentage > 0 %}
+                        {{ discount_summary.discount_percentage }}% (৳{{ discount_summary.discount_amount }})
+                    {% else %}
+                        ৳{{ discount_summary.discount_amount }}
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Shipping:</td>
+                <td>৳{{ discount_summary.shipping_cost }}</td>
+            </tr>
+            <tr>
+                <td>Total Amount:</td>
+                <td>৳{{ discount_summary.total_amount }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            {% for field in form %}
+            <div class="form-row">
+                {{ field.errors }}
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.help_text %}
+                <div class="help">{{ field.help_text|safe }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </fieldset>
+        
+        <div class="discount-preview"></div>
+        
+        <div class="submit-row">
+            <input type="submit" value="Apply Discount" class="default" />
+            <a href="{% url 'admin:order_order_change' order.id %}" class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %} 

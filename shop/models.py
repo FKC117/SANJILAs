@@ -6,6 +6,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 #from django_summernote.fields import SummernoteTextField
 from django.contrib.auth.models import User
+from django.core.validators import MinLengthValidator
 
 
 
@@ -383,23 +384,96 @@ class Contact(models.Model):
 
 class Customer(models.Model):
     """Customer model for tracking customer information"""
-    name = models.CharField(max_length=255)
-    email = models.EmailField(unique=True)
+    name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20)
-    address = models.TextField(blank=True, null=True)
-    city = models.CharField(max_length=100, blank=True, null=True)
-    state = models.CharField(max_length=100, blank=True, null=True)
-    country = models.CharField(max_length=100, blank=True, null=True)
-    zip_code = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    shipping_address = models.TextField(help_text="Enter the shipping address minimum 10 characters", validators=[MinLengthValidator(10)])
+    city = models.CharField(max_length=50)  # Will store city_id
+    zone = models.CharField(max_length=50, blank=True, null=True)  # Will store zone_id
+    area = models.CharField(max_length=100, blank=True, null=True)  # Will store area_id
+    city_name = models.CharField(max_length=100)  # For display purposes
+    zone_name = models.CharField(max_length=100, blank=True, null=True)  # For display purposes
+    area_name = models.CharField(max_length=100, blank=True, null=True)  # For display purposes
+    shipping_location = models.CharField(max_length=50, choices=[
+        ('inside_dhaka', 'Inside Dhaka'),
+        ('outside_dhaka', 'Outside Dhaka')
+    ], default='inside_dhaka')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_order_date = models.DateTimeField(null=True, blank=True)
+    total_orders = models.PositiveIntegerField(default=0)
+    total_spent = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     class Meta:
         verbose_name = 'Customer'
         verbose_name_plural = 'Customers'
-        ordering = ['name']
+        ordering = ['-last_order_date']
+        indexes = [
+            models.Index(fields=['phone']),
+            models.Index(fields=['email']),
+        ]
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.phone})"
+
+    @classmethod
+    def get_or_create_from_order(cls, order):
+        """Create or update customer from order data"""
+        try:
+            # Try to find existing customer by phone (primary identifier)
+            customer = cls.objects.get(phone=order.customer_phone)
+            # Update customer information
+            customer.name = order.customer_name
+            customer.email = order.customer_email
+            customer.shipping_address = order.shipping_address
+            customer.city = order.city
+            customer.zone = order.zone
+            customer.area = order.area
+            customer.city_name = order.city_name
+            customer.zone_name = order.zone_name
+            customer.area_name = order.area_name
+            customer.shipping_location = order.shipping_location
+            customer.last_order_date = order.order_date
+            customer.total_orders += 1
+            customer.total_spent += order.total_amount
+            customer.save()
+            return customer, False  # False indicates existing customer
+        except cls.DoesNotExist:
+            # Create new customer
+            customer = cls.objects.create(
+                name=order.customer_name,
+                phone=order.customer_phone,
+                email=order.customer_email,
+                shipping_address=order.shipping_address,
+                city=order.city,
+                zone=order.zone,
+                area=order.area,
+                city_name=order.city_name,
+                zone_name=order.zone_name,
+                area_name=order.area_name,
+                shipping_location=order.shipping_location,
+                last_order_date=order.order_date,
+                total_orders=1,
+                total_spent=order.total_amount
+            )
+            return customer, True  # True indicates new customer
+
+    @classmethod
+    def create_manually(cls, **kwargs):
+        """Create a customer manually with validation"""
+        required_fields = ['name', 'phone', 'shipping_address', 'city', 'city_name']
+        for field in required_fields:
+            if field not in kwargs:
+                raise ValueError(f"Missing required field: {field}")
+        
+        # Validate phone number format (basic validation)
+        if not kwargs['phone'].isdigit():
+            raise ValueError("Phone number must contain only digits")
+        
+        # Validate email if provided
+        if kwargs.get('email') and '@' not in kwargs['email']:
+            raise ValueError("Invalid email format")
+        
+        return cls.objects.create(**kwargs)
 
 

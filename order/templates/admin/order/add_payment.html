@@ -1,0 +1,125 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    .payment-summary {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+    .payment-summary h3 {
+        margin-top: 0;
+        color: #666;
+    }
+    .payment-summary table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .payment-summary td {
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+    }
+    .payment-summary td:last-child {
+        text-align: right;
+        font-weight: bold;
+    }
+    .payment-history {
+        margin-top: 20px;
+    }
+    .payment-history h3 {
+        color: #666;
+    }
+    .payment-history table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .payment-history th, .payment-history td {
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
+    .payment-history th {
+        background: #f5f5f5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="payment-summary">
+        <h3>Payment Summary</h3>
+        <table>
+            <tr>
+                <td>Total Amount:</td>
+                <td>৳{{ payment_summary.total_amount }}</td>
+            </tr>
+            <tr>
+                <td>Advance Payment:</td>
+                <td>৳{{ payment_summary.advance_payment }}</td>
+            </tr>
+            <tr>
+                <td>Payment Collected:</td>
+                <td>৳{{ payment_summary.payment_collected }}</td>
+            </tr>
+            <tr>
+                <td>Payment Due:</td>
+                <td>৳{{ payment_summary.payment_due }}</td>
+            </tr>
+            <tr>
+                <td>Payment Status:</td>
+                <td>{{ payment_summary.payment_status }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            {% for field in form %}
+            <div class="form-row">
+                {{ field.errors }}
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.help_text %}
+                <div class="help">{{ field.help_text|safe }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </fieldset>
+        <div class="submit-row">
+            <input type="submit" value="Record Payment" class="default" />
+            <a href="{% url 'admin:order_order_change' order.id %}" class="button cancel-link">Cancel</a>
+        </div>
+    </form>
+
+    {% if payment_summary.payment_history %}
+    <div class="payment-history">
+        <h3>Payment History</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Notes</th>
+                    <th>Recorded By</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for payment in payment_summary.payment_history %}
+                <tr>
+                    <td>{{ payment.date|date:"Y-m-d H:i" }}</td>
+                    <td>৳{{ payment.amount }}</td>
+                    <td>{{ payment.method }}</td>
+                    <td>{{ payment.notes|default:"-" }}</td>
+                    <td>{{ payment.user|default:"-" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %} 

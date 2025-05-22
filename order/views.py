@@ -10,6 +10,9 @@ from django.db.models import Q, Case, When, IntegerField
 from .models import StockMovement
 from django.utils import timezone
 from django.db.models import F
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from shop.models import SiteSettings
 
 def cart_add(request):
     if request.method == 'POST':
@@ -1075,6 +1078,18 @@ def get_related_products(cart_items):
     except Exception as e:
         print(f"Error getting related products: {e}")
         return []
+
+@staff_member_required
+def view_invoice(request, order_id):
+    """View to display invoice for an order"""
+    order = get_object_or_404(Order, id=order_id)
+    settings = SiteSettings.get_settings()
+    
+    context = {
+        'order': order,
+        'settings': settings,
+    }
+    return render(request, 'order/invoice.html', context)
 
 
 
