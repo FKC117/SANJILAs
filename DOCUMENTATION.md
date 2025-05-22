@@ -736,305 +736,188 @@ User submits form
     - Show error
 ```
 
----
+### 3. Invoice System
 
-### 3. Shipping System
+#### Invoice Generation and Management
+The system provides a comprehensive invoice generation and management system with both HTML and PDF capabilities.
 
-#### Shipping Calculation (`shipping/views.py`)
+##### HTML Invoice Features
+- **Standalone HTML Template**: 
+  - Complete, self-contained HTML document
+  - No template inheritance required
+  - Responsive design with print optimization
+  - Clean, professional layout
+
+- **Invoice Components**:
+  - Company branding with logo
+  - Invoice header with company details
+  - Customer billing information
+  - Itemized product list
+  - Payment and shipping details
+  - Order notes
+  - Social media links
+  - Copyright information
+
+- **Styling Features**:
+  - Professional grid-based layout
+  - Consistent typography
+  - Responsive design
+  - Print-friendly CSS
+  - Centered text alignment for better readability
+  - Proper spacing and margins
+  - Currency formatting with BDT symbol (৳)
+
+- **Print Optimization**:
+  - Print-specific CSS rules
+  - Hidden print button when printing
+  - Proper page margins
+  - Background colors and images preserved
+  - Clean table borders
+
+##### Invoice Access and Management
+- **URL Access**:
+  - Direct URL access: `/order/invoice/<order_id>/`
+  - Admin interface integration
+  - View and download options
+
+- **Admin Interface Features**:
+  - Invoice status indicator
+  - Download button
+  - View button
+  - Bulk invoice generation
+  - Invoice regeneration capability
+
+##### Invoice Data
+- **Order Information**:
+  - Invoice number
+  - Order date
+  - Order status
+  - Payment status
+  - Shipping details
+
+- **Product Details**:
+  - Product name
+  - Quantity
+  - Unit price
+  - Total price
+  - Pre-order indicators
+
+- **Financial Information**:
+  - Subtotal
+  - Shipping cost
+  - Discount (if applicable)
+  - Total amount
+  - Payment summary
+  - Advance payment
+  - Payment collected
+  - Payment due
+
+##### Implementation Details
 ```python
-def calculate_shipping(request):
+# View Implementation
+@staff_member_required
+def view_invoice(request, order_id):
     """
-    Calculate shipping cost with rules:
-    1. Base cost per zone
-    2. Additional cost for remote areas
-    3. Free shipping for orders above threshold
-    4. Special rates for preorders
+    View invoice for a specific order:
+    1. Retrieve order and site settings
+    2. Render invoice template
+    3. Handle access control
     """
-    try:
-        area_id = request.POST.get('area_id')
-        cart_total = Decimal(request.POST.get('cart_total', 0))
-        
-        area = Area.objects.get(id=area_id)
-        base_cost = area.shipping_cost
-        
-        # Free shipping for orders above threshold
-        if cart_total >= settings.FREE_SHIPPING_THRESHOLD:
-            return JsonResponse({
-                'status': 'success',
-                'cost': 0,
-                'message': 'Free shipping applied'
-            })
-        
-        # Special handling for preorders
-        if request.session.get('cart', {}).get('has_preorder'):
-            base_cost *= Decimal('1.2')  # 20% extra for preorders
-        
-        return JsonResponse({
-            'status': 'success',
-            'cost': base_cost
-        })
-    except Area.DoesNotExist:
-        return JsonResponse({
-            'status': 'error',
-            'message': 'Invalid shipping area'
-        })
+    order = get_object_or_404(Order, id=order_id)
+    settings = SiteSettings.get_settings()
+    return render(request, 'order/invoice.html', {
+        'order': order,
+        'settings': settings
+    })
 ```
 
-##### Example: Shipping Cost Calculation (Frontend AJAX)
-```js
-$('#shipping-area').on('change', function() {
-    $.post('/shipping/calculate/', {
-        area_id: $(this).val(),
-        cart_total: getCartTotal(),
-        csrfmiddlewaretoken: '{{ csrf_token }}'
-    }, function(response) {
-        if (response.status === 'success') {
-            $('#shipping-cost').text(response.cost);
-        }
-    });
-});
+##### Template Structure
+```html
+<!-- Key Template Sections -->
+<div class="invoice-container">
+    <!-- Header Section -->
+    <div class="invoice-header">
+        <!-- Company Info -->
+        <!-- Logo -->
+        <!-- Invoice Info -->
+    </div>
+
+    <!-- Customer Details -->
+    <div class="invoice-details">
+        <!-- Billing Info -->
+        <!-- Payment Info -->
+    </div>
+
+    <!-- Product Table -->
+    <table class="invoice-table">
+        <!-- Product List -->
+    </table>
+
+    <!-- Totals Section -->
+    <div class="totals">
+        <!-- Financial Summary -->
+    </div>
+
+    <!-- Payment Summary -->
+    <div class="payment-summary">
+        <!-- Payment Details -->
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <!-- Copyright -->
+        <!-- Social Links -->
+    </div>
+</div>
 ```
 
-##### Example: API Request/Response
-```
-POST /shipping/calculate/
-{
-  "area_id": 5,
-  "cart_total": 2000.00
+##### CSS Features
+```css
+/* Key Style Components */
+.invoice-container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
 }
 
-Response:
-{
-  "status": "success",
-  "cost": 100.00
+.invoice-header {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 20px;
 }
-```
 
-##### Shipping Calculation Flow
-```
-User selects shipping area
-        |
-        v
-AJAX POST to /shipping/calculate/
-        |
-        v
-[Backend]
-- Lookup area & base cost
-- Apply free shipping/preorder rules
-- Return shipping cost
-        |
-        v
-[Frontend]
-- Update shipping cost in summary
-```
+.invoice-table {
+    width: 100%;
+    border-collapse: collapse;
+}
 
----
-
-### 4. Payment Processing
-
-#### SSL Commerz Integration (`order/payment.py`)
-```python
-class SSLCommerzPayment:
-    """
-    SSL Commerz payment integration:
-    1. Generate payment session
-    2. Handle payment validation
-    3. Process payment response
-    4. Update order status
-    """
+/* Print Styles */
+@media print {
+    .print-button-container {
+        display: none;
+    }
     
-    def create_payment_session(self, order):
-        """
-        Create payment session with:
-        1. Order details
-        2. Customer information
-        3. Shipping details
-        4. Success/fail URLs
-        """
-        data = {
-            'store_id': settings.SSL_STORE_ID,
-            'store_passwd': settings.SSL_STORE_PASSWORD,
-            'total_amount': order.total_amount,
-            'currency': 'BDT',
-            'tran_id': f'ORDER_{order.id}',
-            'product_category': 'Fashion',
-            'success_url': reverse('payment_success'),
-            'fail_url': reverse('payment_fail'),
-            'cancel_url': reverse('payment_cancel'),
-            'cus_name': order.customer.get_full_name(),
-            'cus_email': order.customer.email,
-            'cus_phone': order.customer.profile.phone,
-            'cus_add1': order.shipping_address,
-            'shipping_method': 'NO',
-            'product_name': 'SANJILA\'S Order',
-            'product_profile': 'general'
-        }
-        
-        return self._make_api_request('create', data)
-    
-    def validate_payment(self, response_data):
-        """
-        Validate payment response:
-        1. Verify transaction ID
-        2. Check amount
-        3. Validate status
-        4. Update order
-        """
-        if not self._verify_hash(response_data):
-            raise PaymentValidationError('Invalid payment response')
-            
-        if response_data['status'] == 'VALID':
-            order = Order.objects.get(
-                id=response_data['tran_id'].split('_')[1]
-            )
-            order.payment_status = 'completed'
-            order.save()
-            return True
-            
-        return False
-```
-
-##### Example: Payment Session Creation (Backend)
-```python
-payment = SSLCommerzPayment()
-session = payment.create_payment_session(order)
-# Redirect user to session['GatewayPageURL']
-```
-
-##### Example: Payment Validation (Backend)
-```python
-def payment_callback(request):
-    response_data = request.POST
-    payment = SSLCommerzPayment()
-    if payment.validate_payment(response_data):
-        # Payment successful, update order
-        ...
-    else:
-        # Payment failed, show error
-        ...
-```
-
-##### Payment Flow
-```
-User submits order with payment
-        |
-        v
-Create payment session (SSLCommerz)
-        |
-        v
-User redirected to payment gateway
-        |
-        v
-User completes payment
-        |
-        v
-Payment gateway calls callback URL
-        |
-        v
-[Backend]
-- Validate payment
-- Update order status
-- Notify user
-```
-
----
-
-### 5. User Registration
-
-#### User Registration (`accounts/views.py`)
-```python
-def register(request):
-    """
-    User registration with steps:
-    1. Validate form data
-    2. Check email uniqueness
-    3. Create user and profile
-    4. Send verification email
-    5. Handle phone verification
-    """
-    if request.method == 'POST':
-        form = UserRegistrationForm(request.POST)
-        if form.is_valid():
-            try:
-                # Create user
-                user = form.save(commit=False)
-                user.set_password(form.cleaned_data['password'])
-                user.save()
-                
-                # Create profile
-                Profile.objects.create(
-                    user=user,
-                    phone=form.cleaned_data['phone'],
-                    address=form.cleaned_data['address'],
-                    city=form.cleaned_data['city']
-                )
-                
-                # Send verification email
-                send_verification_email(user)
-                
-                # Handle phone verification
-                send_verification_sms(user.profile.phone)
-                
-                return redirect('login')
-            except Exception as e:
-                form.add_error(None, str(e))
-    else:
-        form = UserRegistrationForm()
-    
-    return render(request, 'accounts/register.html', {'form': form})
-```
-
-##### Example: Registration (Frontend AJAX)
-```js
-$('#register-form').on('submit', function(e) {
-    e.preventDefault();
-    $.post('/accounts/register/', $(this).serialize(), function(response) {
-        if (response.status === 'success') {
-            window.location.href = '/accounts/login/';
-        } else {
-            $('#register-error').text(response.message);
-        }
-    });
-});
-```
-
-##### Example: API Request/Response
-```
-POST /accounts/register/
-{
-  "username": "johndoe",
-  "email": "john@example.com",
-  "password": "secret123",
-  "phone": "01712345678"
-}
-
-Response:
-{
-  "status": "success",
-  "redirect_url": "/accounts/login/"
+    .invoice-container {
+        box-shadow: none;
+        border: none;
+    }
 }
 ```
 
-##### Registration Flow
-```
-User fills registration form
-        |
-        v
-AJAX POST to /accounts/register/
-        |
-        v
-[Backend]
-- Validate form data
-- Create user & profile
-- Send verification email/SMS
-- Return success or error
-        |
-        v
-[Frontend]
-- Redirect to login or show error
-```
+##### Security Considerations
+- Staff member access required
+- Proper data sanitization
+- Secure file handling
+- Access control for invoice generation
+- Protection against unauthorized access
 
----
+##### Future Enhancements
+1. PDF generation with improved styling
+2. Email invoice delivery
+3. Invoice customization options
+4. Bulk invoice operations
+5. Invoice archiving system
 
 ## Core Components
 
