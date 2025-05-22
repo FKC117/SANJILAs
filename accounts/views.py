@@ -975,7 +975,9 @@ def revenue(request):
     if request.method == 'POST':
         form = RevenueForm(request.POST)
         if form.is_valid():
-            form.save()
+            revenue = form.save(commit=False)
+            revenue.created_by = request.user
+            revenue.save()
             messages.success(request, 'Revenue entry created successfully.')
             return redirect('accounts:revenue')
     else:
