@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 from order.models import Order
+from django.urls import reverse
 
 class PathaoCredentials(models.Model):
     """
@@ -63,6 +64,9 @@ class PathaoStore(models.Model):
     def __str__(self):
         return f"{self.store_name} (ID: {self.store_id})"
 
+    def get_absolute_url(self):
+        return reverse('store_detail', kwargs={'store_id': self.store_id})
+
 class PathaoCity(models.Model):
     """
     Stores the list of cities available for Pathao delivery.
@@ -75,6 +79,9 @@ class PathaoCity(models.Model):
 
     def __str__(self):
         return self.city_name
+
+    def get_absolute_url(self):
+        return reverse('city_detail', kwargs={'city_id': self.city_id})
 
 class PathaoZone(models.Model):
     """
@@ -89,6 +96,9 @@ class PathaoZone(models.Model):
 
     def __str__(self):
         return f"{self.zone_name} ({self.city.city_name})"
+
+    def get_absolute_url(self):
+        return reverse('zone_detail', kwargs={'zone_id': self.zone_id})
 
 class PathaoArea(models.Model):
     """
@@ -105,6 +115,9 @@ class PathaoArea(models.Model):
 
     def __str__(self):
         return f"{self.area_name} ({self.zone.zone_name})"
+
+    def get_absolute_url(self):
+        return reverse('area_detail', kwargs={'area_id': self.area_id})
 
 class PathaoOrder(models.Model):
     """
@@ -145,6 +158,9 @@ class PathaoOrder(models.Model):
 
     def __str__(self):
         return f"Pathao Order: {self.consignment_id or self.merchant_order_id}"
+
+    def get_absolute_url(self):
+        return reverse('track_order', kwargs={'consignment_id': self.consignment_id})
 
 class PathaoOrderEvent(models.Model):
     """

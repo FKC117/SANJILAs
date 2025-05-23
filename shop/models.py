@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 #from django_summernote.fields import SummernoteTextField
 from django.contrib.auth.models import User
 from django.core.validators import MinLengthValidator
+from django.urls import reverse
 
 
 
@@ -43,6 +44,9 @@ class ProductCategory(models.Model):
     def __str__(self):
         return self.name
 
+    def get_absolute_url(self):
+        return reverse('category', kwargs={'category_slug': self.slug})
+
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
@@ -61,6 +65,15 @@ class ProductSubCategory(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_absolute_url(self):
+        # Get the first category for the URL
+        first_category = self.category.first()
+        if first_category:
+            return reverse('category', kwargs={
+                'category_slug': first_category.slug
+            }) + f'?subcategory={self.slug}'
+        return reverse('products') + f'?subcategory={self.slug}'
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -220,6 +233,9 @@ class Product(models.Model):
         start_date = timezone.now() - timedelta(days=days)
         return self.stock_movements.filter(created_at__gte=start_date)
 
+    def get_absolute_url(self):
+        return reverse('product_detail', kwargs={'slug': self.slug})
+
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, related_name='images', on_delete=models.CASCADE)
@@ -359,6 +375,9 @@ class AboutUs(models.Model):
 
     def __str__(self):
         return self.title
+
+    def get_absolute_url(self):
+        return reverse('about')
 
     @classmethod
     def get_about_us(cls):

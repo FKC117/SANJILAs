@@ -1,0 +1,417 @@
+{% extends "finance/finance_base.html" %}
+{% load static %}
+
+{% block finance_title %}Profit Report{% endblock %}
+{% block finance_header_title %}Profit Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .metric-card .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .metric-card .icon i {
+        font-size: 1.25rem;
+        color: white;
+    }
+
+    .metric-card .value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-card .label {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .chart-card h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: #212529;
+    }
+
+    .chart-container {
+        height: 250px;
+    }
+
+    .profit-table {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .profit-table h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: #212529;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6c757d;
+    }
+
+    .table td {
+        font-size: 0.875rem;
+        vertical-align: middle;
+    }
+
+    .date-filter {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .date-filter form {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-end;
+    }
+
+    .form-group {
+        flex: 1;
+    }
+
+    .form-group label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+
+    .payment-methods {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .payment-methods h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: #212529;
+    }
+
+    .payment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .payment-card {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .payment-card h4 {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 1rem;
+    }
+
+    .payment-details {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .payment-period, .payment-total {
+        flex: 1;
+        padding: 0.5rem;
+        background: white;
+        border-radius: 0.25rem;
+    }
+
+    .payment-period .amount, .payment-total .amount {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: #212529;
+    }
+
+    .payment-period .count, .payment-total .count {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}
+
+{% block finance_content %}
+<!-- Date Filter -->
+<div class="date-filter">
+    <form method="get" class="row g-3">
+        <div class="form-group">
+            <label for="start_date">Start Date</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+        <div class="form-group">
+            <label for="end_date">End Date</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Apply Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Key Metrics -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="icon" style="background: #4CAF50;">
+            <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="value">${{ profit_summary.total_sales|floatformat:2 }}</div>
+        <div class="label">Total Sales</div>
+        <small class="text-muted">Gross Revenue</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #2196F3;">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="value">${{ profit_summary.gross_profit|floatformat:2 }}</div>
+        <div class="label">Gross Profit</div>
+        <small class="text-muted">{{ profit_summary.margin_percentage|floatformat:1 }}% Margin</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #FFC107;">
+            <i class="fas fa-calculator"></i>
+        </div>
+        <div class="value">${{ profit_summary.total_cost|floatformat:2 }}</div>
+        <div class="label">Total Cost</div>
+        <small class="text-muted">Cost of Goods</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #9C27B0;">
+            <i class="fas fa-coins"></i>
+        </div>
+        <div class="value">${{ profit_summary.net_profit|floatformat:2 }}</div>
+        <div class="label">Net Profit</div>
+        <small class="text-muted">After Expenses</small>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Profit Distribution</h3>
+        <div class="chart-container">
+            <canvas id="profitMarginsChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h3>Category Performance</h3>
+        <div class="chart-container">
+            <canvas id="categoryPerformanceChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Profit Breakdown -->
+<div class="profit-table">
+    <h3>Profit Breakdown by Category</h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Sales</th>
+                    <th>Cost</th>
+                    <th>Gross Profit</th>
+                    <th>Margin</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category, data in profit_summary.category_breakdown.items %}
+                <tr>
+                    <td>{{ category }}</td>
+                    <td>${{ data.sales|floatformat:2 }}</td>
+                    <td>${{ data.cost|floatformat:2 }}</td>
+                    <td>${{ data.gross_profit|floatformat:2 }}</td>
+                    <td>{{ data.margin|floatformat:1 }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td><strong>Total</strong></td>
+                    <td><strong>${{ profit_summary.total_sales|floatformat:2 }}</strong></td>
+                    <td><strong>${{ profit_summary.total_cost|floatformat:2 }}</strong></td>
+                    <td><strong>${{ profit_summary.gross_profit|floatformat:2 }}</strong></td>
+                    <td><strong>{{ profit_summary.margin_percentage|floatformat:1 }}%</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- Payment Methods -->
+<div class="payment-methods">
+    <h3>Payment Methods</h3>
+    <div class="payment-grid">
+        {% for method, data in payment_summary.payment_summary.items %}
+        <div class="payment-card">
+            <h4>{{ method|title }}</h4>
+            <div class="payment-details">
+                <div class="payment-period">
+                    <p class="amount">${{ data.amount|floatformat:2 }}</p>
+                    <p class="count">{{ data.count }} orders</p>
+                </div>
+                <div class="payment-total">
+                    <p class="amount">${{ data.amount|floatformat:2 }}</p>
+                    <p class="count">Total Orders</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Profit Margins Chart
+    const marginsCtx = document.getElementById('profitMarginsChart').getContext('2d');
+    new Chart(marginsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Gross Profit', 'Costs', 'Net Profit'],
+            datasets: [{
+                data: [
+                    {{ profit_summary.gross_profit }},
+                    {{ profit_summary.total_cost }},
+                    {{ profit_summary.net_profit }}
+                ],
+                backgroundColor: [
+                    'rgba(76, 175, 80, 0.5)',
+                    'rgba(244, 67, 54, 0.5)',
+                    'rgba(33, 150, 243, 0.5)'
+                ],
+                borderColor: [
+                    '#4CAF50',
+                    '#F44336',
+                    '#2196F3'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12,
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Category Performance Chart
+    const categoryCtx = document.getElementById('categoryPerformanceChart').getContext('2d');
+    new Chart(categoryCtx, {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for category, data in profit_summary.category_breakdown.items %}
+                '{{ category }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Gross Profit',
+                data: [
+                    {% for category, data in profit_summary.category_breakdown.items %}
+                    {{ data.gross_profit }},
+                    {% endfor %}
+                ],
+                backgroundColor: '#4CAF50'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

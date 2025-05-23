@@ -20,6 +20,8 @@ from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from io import BytesIO
 from PIL import Image
 import os.path
+from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 
 # Create your models here.
 class ShippingRate(models.Model):
@@ -34,6 +36,9 @@ class ShippingRate(models.Model):
 
     def __str__(self):
         return f"{self.name} - ৳{self.price}"
+
+    def get_absolute_url(self):
+        return reverse('shipping_rates')
 
     @classmethod
     def get_rate(cls, location=None):
@@ -143,6 +148,9 @@ class Order(models.Model):
     def __str__(self):
         return f"Order #{self.id} - {self.customer_name}"
 
+    def get_absolute_url(self):
+        return reverse('view_invoice', kwargs={'order_id': self.id})
+
     @classmethod
     def print_payment_methods(cls):
         """Debug utility to print all payment methods used in orders"""
@@ -196,6 +204,19 @@ class Order(models.Model):
             date_str = timezone.now().strftime('%Y%m%d')
             unique_id = str(uuid.uuid4().hex[:5]).upper()
             self.invoice_number = f"INV-{date_str}-{unique_id}"
+            
+            # Generate invoice PDF
+            try:
+                self.generate_invoice_pdf()
+            except Exception as e:
+                print(f"Error generating invoice PDF: {str(e)}")
+            
+            # Send invoice email if customer email is provided
+            if self.customer_email:
+                try:
+                    self.send_invoice_email()
+                except Exception as e:
+                    print(f"Error sending invoice email: {str(e)}")
         
         # Save again with updated values
         super().save(*args, **kwargs)
@@ -498,6 +519,72 @@ class Order(models.Model):
             'shipping_cost': self.shipping_cost,
             'total_amount': self.total_amount
         }
+
+    def send_invoice_email(self):
+        """Send invoice email to customer"""
+        if not self.customer_email:
+            print("No customer email provided")
+            return False
+            
+        try:
+            # Get site settings for the email template
+            site_settings = SiteSettings.get_settings()
+            
+            # Get the current site domain
+            from django.contrib.sites.models import Site
+            try:
+                current_site = Site.objects.get_current()
+                domain = current_site.domain
+                protocol = 'https' if not settings.DEBUG else 'http'
+            except:
+                domain = settings.SITE_DOMAIN
+                protocol = 'https'
+            
+            # Prepare media URL for logo
+            logo_url = None
+            if site_settings.navbar_logo:
+                try:
+                    # Use absolute URL for the logo
+                    logo_url = f"{protocol}://{domain}{site_settings.navbar_logo.url}"
+                    print(f"DEBUG: Logo URL: {logo_url}")  # Debug print
+                except Exception as e:
+                    print(f"Error getting logo URL: {str(e)}")
+            
+            # Render the invoice template with absolute URLs
+            html_message = render_to_string('order/invoice.html', {
+                'order': self,
+                'settings': site_settings,
+                'logo_url': logo_url,
+                'domain': domain,
+                'protocol': protocol,
+            })
+            
+            # Debug prints
+            print(f"DEBUG: Sending email to: {self.customer_email}")
+            print(f"DEBUG: From email: {settings.EMAIL_HOST_USER}")
+            print(f"DEBUG: Subject: Invoice #{self.invoice_number} - {site_settings.site_name}")
+            print(f"DEBUG: Logo URL: {logo_url}")
+            
+            # Create email message
+            email = EmailMessage(
+                subject=f'Invoice #{self.invoice_number} - {site_settings.site_name}',
+                body=html_message,
+                from_email=settings.EMAIL_HOST_USER,
+                to=[self.customer_email],
+                headers={'Reply-To': settings.EMAIL_HOST_USER}
+            )
+            email.content_subtype = "html"  # Main content is now text/html
+            
+            # Send email
+            email.send(fail_silently=False)
+            print("DEBUG: Email sent successfully")
+            return True
+        except Exception as e:
+            print(f"Error sending invoice email: {str(e)}")
+            print(f"Error type: {type(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+            return False
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)

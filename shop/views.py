@@ -11,6 +11,8 @@ from django.views.decorators.http import require_POST
 from django.db.models.signals import pre_save, post_save, pre_delete, post_delete
 from django.dispatch import receiver
 from django.db.models import Q, Case, When, IntegerField
+from django.core.mail import send_mail, EmailMessage
+from django.conf import settings
 import json
 
 from .models import Product, ProductCategory, ProductImage, HeroContent, HeroImage, ProductSubCategory, SiteSettings, AboutUs, Contact
@@ -463,21 +465,51 @@ def about(request):
 
 def contact(request):
     if request.method == 'POST':
-        name = request.POST.get('name')
-        email = request.POST.get('email')
-        subject = request.POST.get('subject')
-        message = request.POST.get('message')
+        # Clean and normalize the input data
+        name = request.POST.get('name', '').strip().replace('\xa0', ' ')
+        email = request.POST.get('email', '').strip().replace('\xa0', ' ')
+        subject = request.POST.get('subject', '').strip().replace('\xa0', ' ')
+        message = request.POST.get('message', '').strip().replace('\xa0', ' ')
         
         try:
+            # Save to database
             Contact.objects.create(
                 name=name,
                 email=email,
                 subject=subject,
                 message=message
             )
+            
+            # Send email notification
+            email_subject = f'New Contact Form Submission: {subject}'
+            email_message = f"""New contact form submission received:
+
+Name: {name}
+Email: {email}
+Subject: {subject}
+
+Message:
+{message}"""
+
+            # Debug prints
+            print(f"DEBUG: email_subject (repr): {repr(email_subject)}")
+            print(f"DEBUG: email_message (repr): {repr(email_message)}")
+            print(f"DEBUG: from_email (repr): {repr(settings.EMAIL_HOST_USER)}")
+            print(f"DEBUG: recipient_list (repr): {repr(['sanjilas.bd@gmail.com'])}")
+            
+            # Send email using send_mail
+            send_mail(
+                subject=email_subject,
+                message=email_message,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=['sanjilas.bd@gmail.com'],
+                fail_silently=False,
+            )
+            
             messages.success(request, 'Your message has been sent successfully. We will get back to you soon!')
         except Exception as e:
             messages.error(request, 'Sorry, there was an error sending your message. Please try again later.')
+            print(f"Error in contact form: {str(e)}")  # For debugging
     
     context = {
         'site_settings': SiteSettings.get_settings(),
@@ -770,3 +802,13 @@ def cancel_order(request, order_id):
             'status': 'error',
             'message': str(e)
         }, status=500)
+
+@staff_member_required
+def staff_logout(request):
+    """Handle staff member logout"""
+    if request.method == 'POST':
+        from django.contrib.auth import logout
+        logout(request)
+        messages.success(request, 'You have been successfully logged out.')
+        return redirect('index')
+    return render(request, 'shop/staff/logout.html')

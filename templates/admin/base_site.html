@@ -37,7 +37,7 @@
     <a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a>
 </h1>
 {% if user.is_superuser %}
-<a href="{% url 'accounts:product_dashboard' %}" class="dashboard-link">
+<a href="{% url 'finance:dashboard' %}" class="dashboard-link">
     <i class="fas fa-chart-line"></i> Dashboard
 </a>
 {% endif %}

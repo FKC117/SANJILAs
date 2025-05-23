@@ -13,6 +13,7 @@ from django.db.models import F
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from shop.models import SiteSettings
+from finance.models import ProductAnalytics, DailySales
 
 def cart_add(request):
     if request.method == 'POST':
@@ -454,7 +455,6 @@ def checkout_view(request):
                     )
 
                     # Update product analytics
-                    from accounts.models import ProductAnalytics
                     try:
                         # Try to get existing analytics record
                         analytics = ProductAnalytics.objects.get(
@@ -483,7 +483,6 @@ def checkout_view(request):
                 continue
         
         # Update daily sales
-        from accounts.models import DailySales
         try:
             # Try to get existing daily sales record
             daily_sales = DailySales.objects.get(date=timezone.now().date())
@@ -971,7 +970,6 @@ def cancel_order(request, order_id):
                     )
 
                     # Update product analytics
-                    from accounts.models import ProductAnalytics
                     try:
                         # Try to get existing analytics record
                         analytics = ProductAnalytics.objects.get(
@@ -996,7 +994,6 @@ def cancel_order(request, order_id):
                         )
 
             # Update daily sales
-            from accounts.models import DailySales
             try:
                 # Try to get existing daily sales record
                 daily_sales = DailySales.objects.get(date=timezone.now().date())

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'finance/css/finance.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="finance-container">
+    <div class="finance-sidebar">
+        <h3>Finance Reports</h3>
+        <nav class="finance-nav">
+            <a href="{% url 'finance:dashboard' %}" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-chart-line"></i> Dashboard
+            </a>
+            <a href="{% url 'finance:sales_report' %}" class="nav-item {% if request.resolver_match.url_name == 'sales_report' %}active{% endif %}">
+                <i class="fas fa-shopping-cart"></i> Sales Report
+            </a>
+            <a href="{% url 'finance:product_report' %}" class="nav-item {% if request.resolver_match.url_name == 'product_report' %}active{% endif %}">
+                <i class="fas fa-box"></i> Product Report
+            </a>
+            <a href="{% url 'finance:profit_report' %}" class="nav-item {% if request.resolver_match.url_name == 'profit_report' %}active{% endif %}">
+                <i class="fas fa-dollar-sign"></i> Profit Report
+            </a>
+        </nav>
+    </div>
+
+    <div class="finance-content">
+        <div class="finance-header">
+            <h2>{% block finance_title %}{% endblock %}</h2>
+            <div class="date-range-picker">
+                <form method="get" class="date-form">
+                    <input type="date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" class="date-input">
+                    <span>to</span>
+                    <input type="date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" class="date-input">
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                </form>
+            </div>
+        </div>
+
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block finance_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'finance/js/finance.js' %}"></script>
+{% endblock %} 

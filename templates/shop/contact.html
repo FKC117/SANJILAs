@@ -42,7 +42,7 @@
                 </div>
 
                 <div class="contact-form">
-                    <form method="post" class="needs-validation" novalidate>
+                    <form method="post" class="needs-validation" novalidate accept-charset="UTF-8">
                         {% csrf_token %}
                         {% if messages %}
                         <div class="messages mb-4">
@@ -57,14 +57,14 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="name" class="form-label">Your Name</label>
-                                <input type="text" class="form-control" id="name" name="name" required>
+                                <input type="text" class="form-control" id="name" name="name" required maxlength="100">
                                 <div class="invalid-feedback">
                                     Please enter your name.
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="email" class="form-label">Your Email</label>
-                                <input type="email" class="form-control" id="email" name="email" required>
+                                <input type="email" class="form-control" id="email" name="email" required maxlength="254">
                                 <div class="invalid-feedback">
                                     Please enter a valid email address.
                                 </div>
@@ -73,7 +73,7 @@
                         
                         <div class="mb-3">
                             <label for="subject" class="form-label">Subject</label>
-                            <input type="text" class="form-control" id="subject" name="subject" required>
+                            <input type="text" class="form-control" id="subject" name="subject" required maxlength="200">
                             <div class="invalid-feedback">
                                 Please enter a subject.
                             </div>

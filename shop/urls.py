@@ -36,7 +36,7 @@ urlpatterns = [
     path('products/', views.products_view, name='products'),
     path('contact/', views.contact, name='contact'),
     path('about/', views.about, name='about'),
-    
+   
     # Image management URLs (staff only)
     path('manage/product/image/delete/', views.delete_product_image, name='delete_product_image'),
     path('manage/product/image/set-primary/', views.set_primary_image, name='set_primary_image'),

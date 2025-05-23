@@ -1,0 +1,333 @@
+{% extends "finance/finance_base.html" %}
+{% load static %}
+
+{% block finance_title %}Financial Dashboard{% endblock %}
+{% block finance_header_title %}Financial Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .metric-card .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .metric-card .icon i {
+        font-size: 1.25rem;
+        color: white;
+    }
+
+    .metric-card .value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-card .label {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .chart-card h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: #212529;
+    }
+
+    .chart-container {
+        height: 250px;
+    }
+
+    .payment-methods {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .payment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .payment-card {
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .payment-card h4 {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+
+    .payment-card .amount {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .payment-card .count {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+
+    .top-products {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .top-products h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: #212529;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6c757d;
+    }
+
+    .table td {
+        font-size: 0.875rem;
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+{% block finance_content %}
+<!-- Key Metrics -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="icon" style="background: #4CAF50;">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <div class="value">${{ sales_summary.total_sales|floatformat:2 }}</div>
+        <div class="label">Total Sales</div>
+        <small class="text-muted">{{ sales_summary.total_orders }} Orders</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #2196F3;">
+            <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="value">${{ profit_summary.net_profit|floatformat:2 }}</div>
+        <div class="label">Net Profit</div>
+        <small class="text-muted">{{ profit_summary.net_margin|floatformat:1 }}% Margin</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #FFC107;">
+            <i class="fas fa-box"></i>
+        </div>
+        <div class="value">{{ product_summary.product_sales|length }}</div>
+        <div class="label">Active Products</div>
+        <small class="text-muted">Currently Selling</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #9C27B0;">
+            <i class="fas fa-truck"></i>
+        </div>
+        <div class="value">${{ profit_summary.total_shipping|floatformat:2 }}</div>
+        <div class="label">Shipping Cost</div>
+        <small class="text-muted">Total Shipping</small>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Sales by Status</h3>
+        <div class="chart-container">
+            <canvas id="salesStatusChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h3>Daily Sales Trend</h3>
+        <div class="chart-container">
+            <canvas id="dailySalesChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Methods -->
+<div class="payment-methods">
+    <h3>Payment Methods</h3>
+    <div class="payment-grid">
+        {% for method, data in payment_summary.payment_summary.items %}
+        <div class="payment-card">
+            <h4>{{ method|title }}</h4>
+            <p class="amount">${{ data.amount|floatformat:2 }}</p>
+            <p class="count">{{ data.count }} Orders</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Top Products -->
+<div class="top-products">
+    <h3>Top Selling Products</h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity Sold</th>
+                    <th>Total Sales</th>
+                    <th>Profit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product_id, data in product_summary.product_sales.items %}
+                <tr>
+                    <td>{{ data.product.name }}</td>
+                    <td>{{ data.quantity_sold }}</td>
+                    <td>${{ data.total_sales|floatformat:2 }}</td>
+                    <td>${{ data.profit|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sales by Status Chart
+    const statusCtx = document.getElementById('salesStatusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: [
+                {% for status, data in sales_summary.status_breakdown.items %}
+                '{{ status|title }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for status, data in sales_summary.status_breakdown.items %}
+                    {{ data.amount }},
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#4CAF50', '#2196F3', '#FFC107', '#9C27B0',
+                    '#F44336', '#FF9800', '#795548'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12,
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Daily Sales Chart
+    const dailyCtx = document.getElementById('dailySalesChart').getContext('2d');
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for day in daily_summary.daily_sales %}
+                '{{ day.order_date__date|date:"M d" }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Daily Sales',
+                data: [
+                    {% for day in daily_summary.daily_sales %}
+                    {{ day.total_sales }},
+                    {% endfor %}
+                ],
+                borderColor: '#2196F3',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

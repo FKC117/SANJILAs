@@ -41,10 +41,12 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.humanize',
+    'django.contrib.sites',
     'shop',
     'order',
     'shipping',
-    'accounts',
+    'finance',
+    'django.contrib.sitemaps',
     'django_summernote', # We will use SummernoteTextField() instead of TextField or charfield
     'import_export',
     'django_bootstrap5',
@@ -151,8 +153,22 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Media files configuration
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Site settings
+SITE_ID = 1
+SITE_DOMAIN = 'sanjilas.com'  # Your actual domain
+SITE_NAME = 'Sanjilas'  # Your site name
+
+# Add this to ensure media files are served in development
+if DEBUG:
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 SUMMERNOTE_CONFIG = {
@@ -186,3 +202,17 @@ LOGIN_URL = '/shop/staff/login/'
 # Pathao API Base URLs
 PATHAO_COURIER_SANDBOX_BASE_URL = "https://courier-api-sandbox.pathao.com"
 PATHAO_COURIER_PRODUCTION_BASE_URL = "https://api-hermes.pathao.com"
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'sanjilas.bd@gmail.com'
+EMAIL_HOST_PASSWORD = 'qhas qikq sswg oidk'  # App password for Gmail
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+SERVER_EMAIL = EMAIL_HOST_USER
+
+# Remove the development console backend
+# if DEBUG:
+#     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'

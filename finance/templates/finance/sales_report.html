@@ -1,0 +1,331 @@
+{% extends "finance/finance_base.html" %}
+{% load static %}
+
+{% block finance_title %}Sales Report{% endblock %}
+{% block finance_header_title %}Sales Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .metric-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .metric-card .icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+
+    .metric-card .icon i {
+        font-size: 1.25rem;
+        color: white;
+    }
+
+    .metric-card .value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-card .label {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .chart-card h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: #212529;
+    }
+
+    .chart-container {
+        height: 250px;
+    }
+
+    .sales-table {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .sales-table h3 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        color: #212529;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6c757d;
+    }
+
+    .table td {
+        font-size: 0.875rem;
+        vertical-align: middle;
+    }
+
+    .date-filter {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+
+    .date-filter form {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-end;
+    }
+
+    .form-group {
+        flex: 1;
+    }
+
+    .form-group label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block finance_content %}
+<!-- Date Filter -->
+<div class="date-filter">
+    <form method="get" class="row g-3">
+        <div class="form-group">
+            <label for="start_date">Start Date</label>
+            <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}">
+        </div>
+        <div class="form-group">
+            <label for="end_date">End Date</label>
+            <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}">
+        </div>
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary">Apply Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Key Metrics -->
+<div class="metrics-grid">
+    <div class="metric-card">
+        <div class="icon" style="background: #4CAF50;">
+            <i class="fas fa-shopping-cart"></i>
+        </div>
+        <div class="value">${{ total_sales|floatformat:2 }}</div>
+        <div class="label">Total Sales</div>
+        <small class="text-muted">{{ total_orders }} Orders</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #2196F3;">
+            <i class="fas fa-box"></i>
+        </div>
+        <div class="value">{{ total_items }}</div>
+        <div class="label">Items Sold</div>
+        <small class="text-muted">Total Quantity</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #FFC107;">
+            <i class="fas fa-dollar-sign"></i>
+        </div>
+        <div class="value">${{ average_order_value|floatformat:2 }}</div>
+        <div class="label">Average Order Value</div>
+        <small class="text-muted">Per Order</small>
+    </div>
+
+    <div class="metric-card">
+        <div class="icon" style="background: #9C27B0;">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="value">{{ growth_rate|floatformat:1 }}%</div>
+        <div class="label">Growth Rate</div>
+        <small class="text-muted">vs Previous Period</small>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <h3>Sales by Status</h3>
+        <div class="chart-container">
+            <canvas id="salesStatusChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h3>Daily Sales Trend</h3>
+        <div class="chart-container">
+            <canvas id="dailySalesChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Sales Table -->
+<div class="sales-table">
+    <h3>Recent Sales</h3>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Status</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in recent_orders %}
+                <tr>
+                    <td>#{{ order.id }}</td>
+                    <td>{{ order.order_date|date:"M d, Y" }}</td>
+                    <td>{{ order.customer_name }}</td>
+                    <td>
+                        <span class="badge bg-{{ order.status_color }}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </td>
+                    <td>{{ order.total_items }}</td>
+                    <td>${{ order.total_amount|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sales by Status Chart
+    const statusCtx = document.getElementById('salesStatusChart').getContext('2d');
+    new Chart(statusCtx, {
+        type: 'pie',
+        data: {
+            labels: [
+                {% for status, data in status_breakdown.items %}
+                '{{ status|title }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for status, data in status_breakdown.items %}
+                    {{ data.amount }},
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#4CAF50', '#2196F3', '#FFC107', '#9C27B0',
+                    '#F44336', '#FF9800', '#795548'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        boxWidth: 12,
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Daily Sales Chart
+    const dailyCtx = document.getElementById('dailySalesChart').getContext('2d');
+    new Chart(dailyCtx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for day in daily_sales %}
+                '{{ day.order_date__date|date:"M d" }}',
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Daily Sales',
+                data: [
+                    {% for day in daily_sales %}
+                    {{ day.total_sales }},
+                    {% endfor %}
+                ],
+                borderColor: '#2196F3',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    ticks: {
+                        font: {
+                            size: 11
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
